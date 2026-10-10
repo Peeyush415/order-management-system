@@ -29,6 +29,16 @@ class OrderResource extends JsonResource
                 'id' => $this->customer->id,
                 'name' => $this->customer->name,
                 'email' => $this->customer->email,
+                'phone' => $this->customer->phone,
+                'company' => $this->customer->company,
+                'address' => [
+                    'line1' => $this->customer->address_line1,
+                    'line2' => $this->customer->address_line2,
+                    'city' => $this->customer->city,
+                    'state' => $this->customer->state,
+                    'postal_code' => $this->customer->postal_code,
+                    'country' => $this->customer->country,
+                ],
             ]),
             // Unassigned orders return null, not an empty object.
             'assignee' => $this->whenLoaded('assignee', fn () => $this->assignee ? new UserSummaryResource($this->assignee) : null),

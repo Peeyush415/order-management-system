@@ -37,6 +37,9 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::controller(OrderController::class)->prefix('orders')->name('api.orders.')->group(function () {
         Route::get('/', 'index')->name('index')->can('viewAny', Order::class);
         Route::post('/', 'store')->name('store')->can('create', Order::class);
+        Route::get('/{order}', 'show')->name('show')->can('view', 'order');
+        Route::put('/{order}', 'update')->name('update')->can('update', 'order');
+        Route::delete('/{order}', 'destroy')->name('destroy')->can('delete', 'order');
     });
 
     // No DELETE: a product leaves the catalogue by becoming discontinued.

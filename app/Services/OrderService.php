@@ -7,6 +7,8 @@ use App\Enums\OrderActivityType;
 use App\Enums\OrderPriority;
 use App\Enums\OrderStatus;
 use App\Enums\ProductStatus;
+use App\Exceptions\ConcurrencyConflictException;
+use App\Exceptions\OrderNotEditableException;
 use App\Exceptions\ProductUnavailableException;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -30,12 +32,8 @@ class OrderService
     public function create(array $data, User $by): Order
     {
         return DB::transaction(function () use ($data, $by) {
-            $discountType = isset($data['discount_type']) ? DiscountType::from($data['discount_type']) : null;
-            $pricing = $this->calculator->calculate(
-                $this->snapshotLines($data['items']),
-                $discountType,
-                $discountType ? (int) $data['discount_value'] : 0,
-            );
+            [$discountType, $discountValue] = $this->discount($data);
+            $pricing = $this->price($data['items'], $discountType, $discountValue);
             $status = OrderStatus::from($data['status'] ?? OrderStatus::Pending->value);
 
             $order = new Order([
@@ -44,51 +42,168 @@ class OrderService
                 'priority' => OrderPriority::from((int) ($data['priority'] ?? OrderPriority::Normal->value)),
                 'order_date' => $data['order_date'] ?? now()->toDateString(),
                 'discount_type' => $discountType,
-                'discount_value' => $discountType ? (int) $data['discount_value'] : 0,
+                'discount_value' => $discountValue,
             ]);
             // Set by the server only, never from input.
             $order->forceFill([
                 'status' => $status,
                 'created_by' => $by->id,
-                'subtotal' => $pricing['subtotal'],
-                'discount_total' => $pricing['discount_total'],
-                'tax_total' => $pricing['tax_total'],
-                'grand_total' => $pricing['grand_total'],
                 'version' => 1,
+                ...$this->totals($pricing),
             ])->save();
 
             // Derived from the id inside the transaction, so two requests can never share a number.
             $order->forceFill(['order_number' => Order::numberFor($order->id)])->save();
 
-            $now = now();
-            OrderItem::insert(array_map(
-                fn (array $line) => $line + ['order_id' => $order->id, 'created_at' => $now, 'updated_at' => $now],
-                array_values($pricing['lines']),
-            ));
+            $this->insertItems($order, $pricing);
 
             $order->statusHistories()->create([
                 'from_status' => null,
                 'to_status' => $status,
                 'changed_by' => $by->id,
             ]);
-            $order->activities()->create([
-                'user_id' => $by->id,
-                'type' => OrderActivityType::Created,
-                'description' => 'Order created as '.$status->label(),
-                'properties' => ['status' => $status->value, 'grand_total' => $pricing['grand_total']],
+            $this->recordActivity($order, $by, OrderActivityType::Created, 'Order created as '.$status->label(), [
+                'status' => $status->value,
+                'grand_total' => $pricing['grand_total'],
             ]);
 
             if (! empty($data['note'])) {
                 $order->notes()->create(['user_id' => $by->id, 'body' => $data['note']]);
-                $order->activities()->create([
-                    'user_id' => $by->id,
-                    'type' => OrderActivityType::NoteAdded,
-                    'description' => 'Note added',
-                ]);
+                $this->recordActivity($order, $by, OrderActivityType::NoteAdded, 'Note added');
             }
 
             return $order;
         });
+    }
+
+    /**
+     * Optimistic locking: the row is locked, then the version the client loaded must still be
+     * the current one, or nothing is saved (409). Draft/pending orders can change everything
+     * the user chooses; confirmed and later only the priority.
+     *
+     * @param  array<string, mixed>  $data  validated input, including version
+     *
+     * @throws ConcurrencyConflictException|OrderNotEditableException|ProductUnavailableException
+     */
+    public function update(Order $order, array $data, User $by): Order
+    {
+        return DB::transaction(function () use ($order, $data, $by) {
+            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
+
+            if ($order->version !== (int) $data['version']) {
+                throw new ConcurrencyConflictException;
+            }
+            if ($order->status->isTerminal()) {
+                throw new OrderNotEditableException('Completed or cancelled orders cannot be edited.');
+            }
+
+            $order->priority = OrderPriority::from((int) ($data['priority'] ?? $order->priority->value));
+            $itemsReplaced = false;
+
+            if ($order->status->isEditable()) {
+                [$discountType, $discountValue] = $this->discount($data);
+                $pricing = $this->price($data['items'], $discountType, $discountValue);
+
+                $order->fill([
+                    'customer_id' => $data['customer_id'],
+                    'order_date' => $data['order_date'] ?? $order->order_date->toDateString(),
+                    'discount_type' => $discountType,
+                    'discount_value' => $discountValue,
+                ])->forceFill($this->totals($pricing));
+
+                // Items are cheap to rewrite and are only editable before stock moves.
+                $order->items()->delete();
+                $this->insertItems($order, $pricing);
+                $itemsReplaced = true;
+            }
+
+            $changed = array_keys($order->getDirty());
+            if ($itemsReplaced) {
+                $changed[] = 'items';
+            }
+
+            $order->version++;
+            $order->save();
+
+            $this->recordActivity($order, $by, OrderActivityType::Updated, 'Order updated', ['changed' => $changed]);
+
+            return $order;
+        });
+    }
+
+    /**
+     * Soft delete, only for orders holding no deducted stock.
+     *
+     * @throws OrderNotEditableException
+     */
+    public function delete(Order $order): void
+    {
+        DB::transaction(function () use ($order) {
+            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
+
+            if (! $order->status->isDeletable()) {
+                throw new OrderNotEditableException('Only draft, pending or cancelled orders can be deleted. Cancel the order first.');
+            }
+
+            $order->delete();
+        });
+    }
+
+    /**
+     * @param  array<string, mixed>  $data
+     * @return array{0: ?DiscountType, 1: int}
+     */
+    private function discount(array $data): array
+    {
+        $type = isset($data['discount_type']) ? DiscountType::from($data['discount_type']) : null;
+
+        return [$type, $type ? (int) $data['discount_value'] : 0];
+    }
+
+    /**
+     * @param  list<array{product_id: int, quantity: int}>  $items
+     * @return array<string, mixed>
+     */
+    private function price(array $items, ?DiscountType $discountType, int $discountValue): array
+    {
+        return $this->calculator->calculate($this->snapshotLines($items), $discountType, $discountValue);
+    }
+
+    /**
+     * @param  array<string, mixed>  $pricing
+     * @return array<string, int>
+     */
+    private function totals(array $pricing): array
+    {
+        return [
+            'subtotal' => $pricing['subtotal'],
+            'discount_total' => $pricing['discount_total'],
+            'tax_total' => $pricing['tax_total'],
+            'grand_total' => $pricing['grand_total'],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $pricing
+     */
+    private function insertItems(Order $order, array $pricing): void
+    {
+        $now = now();
+
+        OrderItem::insert(array_map(
+            fn (array $line) => $line + ['order_id' => $order->id, 'created_at' => $now, 'updated_at' => $now],
+            array_values($pricing['lines']),
+        ));
+    }
+
+    private function recordActivity(Order $order, User $by, OrderActivityType $type, string $description, ?array $properties = null): void
+    {
+        $order->activities()->create([
+            'user_id' => $by->id,
+            'type' => $type,
+            'description' => $description,
+            'properties' => $properties,
+        ]);
     }
 
     /**

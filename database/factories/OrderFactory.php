@@ -31,6 +31,7 @@ class OrderFactory extends Factory
             'order_date' => fake()->dateTimeBetween('-6 months')->format('Y-m-d'),
             'discount_type' => null,
             'discount_value' => 0,
+            'version' => 1,
         ];
     }
 
