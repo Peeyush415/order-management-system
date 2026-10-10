@@ -18,6 +18,18 @@ export const routes = [
         meta: { requiresAuth: true, permission: ['orders.view_any', 'orders.view_assigned'], title: 'Orders' },
     },
     {
+        path: '/orders/new',
+        name: 'orders.create',
+        component: () => import('@/pages/orders/OrderWizard.vue'),
+        meta: { requiresAuth: true, permission: 'orders.create', title: 'New order' },
+    },
+    {
+        path: '/orders/:id/edit',
+        name: 'orders.edit',
+        component: () => import('@/pages/orders/OrderWizard.vue'),
+        meta: { requiresAuth: true, permission: 'orders.update', title: 'Edit order' },
+    },
+    {
         path: '/orders/:id',
         name: 'orders.show',
         component: () => import('@/pages/orders/OrderDetail.vue'),

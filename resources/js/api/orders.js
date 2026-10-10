@@ -69,3 +69,17 @@ export async function addOrderNote(id, body) {
 export async function deleteOrder(id) {
     await http.delete(`/orders/${id}`);
 }
+
+/** Only what the user chooses; the server calculates every amount. */
+export async function createOrder(payload) {
+    const { data } = await http.post('/orders', payload);
+
+    return data.data;
+}
+
+/** payload.version must be the version the form was loaded with (409 if it changed). */
+export async function updateOrder(id, payload) {
+    const { data } = await http.put(`/orders/${id}`, payload);
+
+    return data.data;
+}

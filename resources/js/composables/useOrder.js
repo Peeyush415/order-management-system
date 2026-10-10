@@ -73,3 +73,19 @@ export function useOrderMutations(id) {
         }),
     };
 }
+
+/** Create and update for the order form; both refresh the list and the order. */
+export function useOrderFormMutations() {
+    const queryClient = useQueryClient();
+    const refresh = (order) => {
+        queryClient.invalidateQueries({ queryKey: ['orders'] });
+        if (order?.id) {
+            queryClient.invalidateQueries({ queryKey: ['order', String(order.id)] });
+        }
+    };
+
+    return {
+        create: useMutation({ mutationFn: (payload) => api.createOrder(payload), onSuccess: refresh }),
+        update: useMutation({ mutationFn: ({ id, payload }) => api.updateOrder(id, payload), onSuccess: refresh }),
+    };
+}
