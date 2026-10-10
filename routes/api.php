@@ -6,6 +6,7 @@ use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\OrderStatusController;
 use App\Http\Controllers\Api\V1\ProductController;
+use App\Http\Controllers\Api\V1\ProductStockController;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
@@ -58,4 +59,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::put('/{product}', 'update')->name('update')->can('update', 'product');
         Route::patch('/{product}/status', 'updateStatus')->name('status')->can('update', 'product');
     });
+    Route::post('/products/{product}/stock-adjustments', [ProductStockController::class, 'store'])
+        ->name('api.products.stock-adjustments')
+        ->can('update', 'product');
 });
