@@ -1,58 +1,88 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Order Management System
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Production-style Order Management System: a Laravel REST API (`/api/v1`) and a Vue 3 SPA served from the same app.
 
-## About Laravel
+- **Backend:** Laravel 13, MySQL, Sanctum SPA cookie auth
+- **Frontend:** Vue 3 (`<script setup>`), Vue Router, Pinia, TanStack Vue Query, Tailwind, built with Vite
+- **Tests:** PHPUnit (MySQL), Vitest
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Requirements
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+| Tool     | Version |
+|----------|---------|
+| PHP      | 8.3+ (with `pdo_mysql`) |
+| Composer | 2.x |
+| Node.js  | 20.19+ / 22.12+ |
+| MySQL    | 8.0+ or MariaDB 10.6+ (XAMPP works) |
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
-
-## Learning Laravel
-
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
-
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
-
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
-
-## Agentic Development
-
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
+## Quick Start
 
 ```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+git clone <repo-url> order-management-system && cd order-management-system
+cp .env.example .env            # set DB_USERNAME / DB_PASSWORD; create an empty database "oms"
+composer setup                  # install, key, migrate + seed, build frontend
+composer run dev                # http://localhost:8000  (server + queue worker + vite)
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+Create the database first, for example:
 
-## Contributing
+```sql
+CREATE DATABASE oms CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+> `composer setup` runs `migrate:fresh --seed`, so running it again **resets all data** in `oms`.
 
-## Code of Conduct
+Without the composer scripts:
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+```bash
+composer install
+php artisan key:generate
+php artisan migrate --seed
+npm install && npm run build
+php artisan serve               # terminal 1
+php artisan queue:work          # terminal 2
+```
 
-## Security Vulnerabilities
+### Demo logins
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Demo users (admin / manager / staff, password `password`) are added with the role seeder. This table will list them.
 
-## License
+## Environment variables
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+All variables live in `.env.example` with safe local defaults. The ones this project relies on:
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `APP_URL` | `http://localhost:8000` | Base URL of the app |
+| `DB_CONNECTION` / `DB_DATABASE` | `mysql` / `oms` | Main database |
+| `DB_USERNAME` / `DB_PASSWORD` | `root` / *(empty)* | MySQL credentials (XAMPP default) |
+| `SESSION_DRIVER` | `database` | Sessions back Sanctum cookie auth |
+| `SESSION_DOMAIN` | `null` | Cookie domain; keep `null` for localhost |
+| `SANCTUM_STATEFUL_DOMAINS` | `localhost:8000,127.0.0.1:8000` | Hosts that get cookie (stateful) API auth |
+| `CACHE_STORE` / `QUEUE_CONNECTION` | `database` | No Redis needed to run locally |
+
+## Tests and code style
+
+Backend tests use a **separate MySQL database `oms_testing`** (set in `phpunit.xml`), because FULLTEXT search and date functions are MySQL-specific. Host and credentials come from `.env`.
+
+```bash
+mysql -u root -e "CREATE DATABASE oms_testing CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"
+
+php artisan test                # backend tests (database: oms_testing)
+npm run test                    # frontend tests (Vitest)
+./vendor/bin/pint --test        # code style check (composer lint to fix)
+npm run build                   # production assets
+php artisan migrate:fresh --seed  # reset demo data
+```
+
+## Project layout
+
+```
+app/                    Laravel backend (controllers, services, policies, ...)
+routes/api.php          REST API under /api/v1
+routes/web.php          SPA catch-all: every non-API path returns the Vue shell
+resources/views/app.blade.php   single SPA shell
+resources/js/           Vue 3 SPA (main.js, App.vue, api/, composables/, pages/, router/)
+tests/                  PHPUnit feature and unit tests
+docs/AI_USAGE.md        How AI tools were used while building this project
+```
