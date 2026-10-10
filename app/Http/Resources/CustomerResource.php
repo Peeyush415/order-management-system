@@ -3,6 +3,7 @@
 namespace App\Http\Resources;
 
 use App\Models\Customer;
+use App\Support\Money;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
 
@@ -11,6 +12,16 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class CustomerResource extends JsonResource
 {
+    /** Order summary, included on the detail endpoint only. */
+    private ?array $orderStats = null;
+
+    public function withStats(array $stats): static
+    {
+        $this->orderStats = $stats;
+
+        return $this;
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -33,6 +44,10 @@ class CustomerResource extends JsonResource
                 'label' => $this->status->label(),
             ],
             'orders_count' => $this->whenCounted('orders'),
+            'stats' => $this->when($this->orderStats !== null, fn () => [
+                ...$this->orderStats,
+                'total_order_value_formatted' => Money::format($this->orderStats['total_order_value']),
+            ]),
             'created_at' => $this->created_at?->toIso8601String(),
             'updated_at' => $this->updated_at?->toIso8601String(),
         ];

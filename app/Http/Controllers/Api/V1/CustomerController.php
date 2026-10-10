@@ -45,7 +45,9 @@ class CustomerController extends Controller
     {
         Gate::authorize('view', $customer);
 
-        return ApiResponse::success(new CustomerResource($customer->loadCount('orders')));
+        return ApiResponse::success(
+            (new CustomerResource($customer->loadCount('orders')))->withStats($this->customers->stats($customer)),
+        );
     }
 
     public function update(UpdateCustomerRequest $request, Customer $customer): JsonResponse

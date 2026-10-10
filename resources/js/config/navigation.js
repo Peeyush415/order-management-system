@@ -13,6 +13,14 @@ export const navigation = [
 ];
 
 /**
+ * A section stays highlighted on its sub-pages too: /customers/90 belongs to "Customers".
+ * The dashboard ("/") only matches itself.
+ */
+export function isActiveLink(linkPath, currentPath) {
+    return linkPath === '/' ? currentPath === '/' : currentPath === linkPath || currentPath.startsWith(`${linkPath}/`);
+}
+
+/**
  * @param {Array} items
  * @param {{ can: (permission: string) => boolean, hasRoute: (name: string) => boolean }} deps
  */

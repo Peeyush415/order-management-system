@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue';
-import { useRouter } from 'vue-router';
-import { navigation, visibleNavigation } from '@/config/navigation';
+import { useRoute, useRouter } from 'vue-router';
+import { isActiveLink, navigation, visibleNavigation } from '@/config/navigation';
 import { useAuthStore } from '@/stores/auth';
 
 defineProps({
@@ -13,6 +13,9 @@ defineEmits(['close']);
 
 const auth = useAuthStore();
 const router = useRouter();
+
+const route = useRoute();
+const active = (link) => isActiveLink(router.resolve({ name: link.route }).path, route.path);
 
 const links = computed(() =>
     visibleNavigation(navigation, {
@@ -38,8 +41,9 @@ const links = computed(() =>
                 v-for="link in links"
                 :key="link.route"
                 :to="{ name: link.route }"
-                class="block rounded px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100"
-                active-class="bg-blue-50 text-blue-700 hover:bg-blue-50"
+                class="block rounded px-3 py-2 text-sm font-medium"
+                :class="active(link) ? 'bg-blue-50 text-blue-700' : 'text-gray-700 hover:bg-gray-100'"
+                :aria-current="active(link) ? 'page' : undefined"
                 @click="$emit('close')"
             >
                 {{ link.label }}

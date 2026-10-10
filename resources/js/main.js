@@ -4,7 +4,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import App from './App.vue';
 import router from './router';
 import { onUnauthorized } from './api/http';
-import { can } from './directives/can';
+import { createCan } from './directives/can';
 import { useAuthStore } from './stores/auth';
 
 const queryClient = new QueryClient({
@@ -18,7 +18,7 @@ const queryClient = new QueryClient({
 });
 
 const pinia = createPinia();
-const app = createApp(App).use(pinia).use(router).use(VueQueryPlugin, { queryClient }).directive('can', can);
+const app = createApp(App).use(pinia).use(router).use(VueQueryPlugin, { queryClient }).directive('can', createCan(pinia));
 
 // Session expired or account deactivated: forget the user and go to login, then come back.
 onUnauthorized(() => {

@@ -11,6 +11,48 @@ import { useAuthStore } from '@/stores/auth';
 export const routes = [
     { path: '/login', name: 'login', component: () => import('@/pages/Login.vue'), meta: { guestOnly: true, layout: false } },
     { path: '/', name: 'home', component: () => import('@/pages/Home.vue'), meta: { requiresAuth: true, title: 'Dashboard' } },
+    {
+        path: '/customers',
+        name: 'customers.index',
+        component: () => import('@/pages/customers/CustomerList.vue'),
+        meta: { requiresAuth: true, permission: 'customers.view', title: 'Customers' },
+    },
+    {
+        path: '/customers/new',
+        name: 'customers.create',
+        component: () => import('@/pages/customers/CustomerForm.vue'),
+        meta: { requiresAuth: true, permission: 'customers.create', title: 'New customer' },
+    },
+    {
+        path: '/customers/:id',
+        name: 'customers.show',
+        component: () => import('@/pages/customers/CustomerDetail.vue'),
+        meta: { requiresAuth: true, permission: 'customers.view', title: 'Customer' },
+    },
+    {
+        path: '/customers/:id/edit',
+        name: 'customers.edit',
+        component: () => import('@/pages/customers/CustomerForm.vue'),
+        meta: { requiresAuth: true, permission: 'customers.update', title: 'Edit customer' },
+    },
+    {
+        path: '/products',
+        name: 'products.index',
+        component: () => import('@/pages/products/ProductList.vue'),
+        meta: { requiresAuth: true, permission: 'products.view', title: 'Products' },
+    },
+    {
+        path: '/products/new',
+        name: 'products.create',
+        component: () => import('@/pages/products/ProductForm.vue'),
+        meta: { requiresAuth: true, permission: 'products.manage', title: 'New product' },
+    },
+    {
+        path: '/products/:id/edit',
+        name: 'products.edit',
+        component: () => import('@/pages/products/ProductForm.vue'),
+        meta: { requiresAuth: true, permission: 'products.manage', title: 'Edit product' },
+    },
     { path: '/forbidden', name: 'forbidden', component: () => import('@/pages/Forbidden.vue'), meta: { requiresAuth: true, title: 'Access denied' } },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/pages/NotFound.vue'), meta: { layout: false } },
 ];

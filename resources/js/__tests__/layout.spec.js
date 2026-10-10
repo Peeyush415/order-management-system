@@ -2,8 +2,8 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h } from 'vue';
 import { mount } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
-import { navigation, visibleNavigation } from '@/config/navigation';
-import { can } from '@/directives/can';
+import { isActiveLink, navigation, visibleNavigation } from '@/config/navigation';
+import { createCan } from '@/directives/can';
 import { useAuthStore } from '@/stores/auth';
 import { useToastStore } from '@/stores/toast';
 
@@ -19,6 +19,14 @@ describe('sidebar navigation', () => {
         expect(labels).toEqual(['Dashboard', 'Orders', 'Customers', 'Products']);
     });
 
+    it('keeps a section highlighted on its sub-pages', () => {
+        expect(isActiveLink('/customers', '/customers/90')).toBe(true);
+        expect(isActiveLink('/products', '/products/5/edit')).toBe(true);
+        expect(isActiveLink('/customers', '/customers-archive')).toBe(false);
+        expect(isActiveLink('/', '/customers')).toBe(false);
+        expect(isActiveLink('/', '/')).toBe(true);
+    });
+
     it('shows admin links to an admin', () => {
         const labels = visibleNavigation(navigation, { can: () => true, hasRoute }).map((l) => l.label);
 
@@ -27,10 +35,14 @@ describe('sidebar navigation', () => {
 });
 
 describe('v-can directive', () => {
-    beforeEach(() => setActivePinia(createPinia()));
+    let can;
+    beforeEach(() => {
+        const pinia = createPinia();
+        setActivePinia(pinia);
+        can = createCan(pinia);
+    });
 
     const Button = defineComponent({
-        directives: { can },
         props: { permission: { type: [String, Array], required: true } },
         render() {
             return h('div', [h('button', { id: 'target' }, 'Delete')]);

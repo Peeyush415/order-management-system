@@ -195,6 +195,37 @@ class CustomerApiTest extends TestCase
         $this->assertNotSoftDeleted($customer);
     }
 
+    public function test_show_includes_the_order_summary(): void
+    {
+        $customer = Customer::factory()->create();
+        Order::factory()->for($customer)->create(['status' => 'pending', 'grand_total' => 1000]);
+        Order::factory()->for($customer)->create(['status' => 'confirmed', 'grand_total' => 2000]);
+        Order::factory()->for($customer)->create(['status' => 'completed', 'grand_total' => 30000]);
+        Order::factory()->for($customer)->create(['status' => 'cancelled', 'grand_total' => 9999]);
+        Order::factory()->create(['status' => 'completed', 'grand_total' => 500]); // another customer
+
+        $this->actingAs($this->userWithRole('staff'))
+            ->getJson("/api/v1/customers/{$customer->id}")
+            ->assertOk()
+            ->assertJsonPath('data.stats.total_orders', 4)
+            ->assertJsonPath('data.stats.pending_orders', 1)
+            ->assertJsonPath('data.stats.completed_orders', 1)
+            ->assertJsonPath('data.stats.cancelled_orders', 1)
+            // Booked orders only: confirmed + completed.
+            ->assertJsonPath('data.stats.total_order_value', 32000)
+            ->assertJsonPath('data.stats.total_order_value_formatted', '320.00');
+    }
+
+    public function test_list_does_not_include_the_summary(): void
+    {
+        Customer::factory()->create();
+
+        $this->actingAs($this->userWithRole('staff'))
+            ->getJson('/api/v1/customers')
+            ->assertOk()
+            ->assertJsonMissingPath('data.0.stats');
+    }
+
     public function test_show_includes_the_order_count(): void
     {
         $customer = Customer::factory()->create();
