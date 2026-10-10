@@ -10,6 +10,7 @@ use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
+use App\Services\OrderPricingCalculator;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -36,6 +37,8 @@ class DemoDataSeeder extends Seeder
         'Customer requested cancellation',
         'Delivery address could not be confirmed',
     ];
+
+    public function __construct(private readonly OrderPricingCalculator $calculator) {}
 
     private Carbon $now;
 
@@ -286,52 +289,20 @@ class DemoDataSeeder extends Seeder
     }
 
     /**
-     * Same formula as the pricing plan: prorated discount (remainder to the largest line),
-     * tax per line on the discounted amount, round half up in integer cents.
+     * Snapshots each product and prices the order with the same calculator the order service uses.
      */
     private function price(array $lines, ?DiscountType $type, int $value): array
     {
-        $subtotals = array_map(fn ($l) => $l['quantity'] * $l['product']->price, $lines);
-        $subtotal = array_sum($subtotals);
+        $snapshots = array_map(fn (array $line) => [
+            'product_id' => $line['product']->id,
+            'product_name' => $line['product']->name,
+            'sku' => $line['product']->sku,
+            'unit_price' => $line['product']->price,
+            'tax_rate_bps' => $line['product']->tax_rate_bps,
+            'quantity' => $line['quantity'],
+        ], array_values($lines));
 
-        $discountTotal = match ($type) {
-            DiscountType::Fixed => min($value, $subtotal),
-            DiscountType::Percent => intdiv($subtotal * $value + 5000, 10000),
-            null => 0,
-        };
-
-        $discounts = array_map(fn ($s) => $subtotal > 0 ? intdiv($discountTotal * $s, $subtotal) : 0, $subtotals);
-        $largest = array_search(max($subtotals), $subtotals, true);
-        $discounts[$largest] += $discountTotal - array_sum($discounts);
-
-        $result = [];
-        $taxTotal = 0;
-        foreach (array_values($lines) as $i => $line) {
-            $product = $line['product'];
-            $tax = intdiv(($subtotals[$i] - $discounts[$i]) * $product->tax_rate_bps + 5000, 10000);
-            $taxTotal += $tax;
-
-            $result[] = [
-                'product_id' => $product->id,
-                'product_name' => $product->name,
-                'sku' => $product->sku,
-                'unit_price' => $product->price,
-                'tax_rate_bps' => $product->tax_rate_bps,
-                'quantity' => $line['quantity'],
-                'line_subtotal' => $subtotals[$i],
-                'discount_amount' => $discounts[$i],
-                'tax_amount' => $tax,
-                'line_total' => $subtotals[$i] - $discounts[$i] + $tax,
-            ];
-        }
-
-        return [
-            'subtotal' => $subtotal,
-            'discount_total' => $discountTotal,
-            'tax_total' => $taxTotal,
-            'grand_total' => $subtotal - $discountTotal + $taxTotal,
-            'lines' => $result,
-        ];
+        return $this->calculator->calculate($snapshots, $type, $value);
     }
 
     /**
