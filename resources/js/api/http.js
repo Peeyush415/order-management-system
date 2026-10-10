@@ -15,4 +15,22 @@ const http = axios.create({
     },
 });
 
+/**
+ * Runs `handler` whenever the API answers 401 (session expired or account deactivated).
+ * Registered from main.js so this module doesn't import the router or the store.
+ * Requests can opt out with `{ skipAuthRedirect: true }`.
+ */
+export function onUnauthorized(handler) {
+    http.interceptors.response.use(
+        (response) => response,
+        (error) => {
+            if (error.response?.status === 401 && !error.config?.skipAuthRedirect) {
+                handler(error);
+            }
+
+            return Promise.reject(error);
+        },
+    );
+}
+
 export default http;
