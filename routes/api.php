@@ -3,8 +3,10 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\OrderController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Models\Customer;
+use App\Models\Order;
 use App\Models\Product;
 use Illuminate\Support\Facades\Route;
 
@@ -30,6 +32,10 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::put('/{customer}', 'update')->name('update')->can('update', 'customer');
         Route::patch('/{customer}/status', 'updateStatus')->name('status')->can('update', 'customer');
         Route::delete('/{customer}', 'destroy')->name('destroy')->can('delete', 'customer');
+    });
+
+    Route::controller(OrderController::class)->prefix('orders')->name('api.orders.')->group(function () {
+        Route::post('/', 'store')->name('store')->can('create', Order::class);
     });
 
     // No DELETE: a product leaves the catalogue by becoming discontinued.
