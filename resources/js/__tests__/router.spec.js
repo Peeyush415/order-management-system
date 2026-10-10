@@ -54,6 +54,15 @@ describe('router guards', () => {
         expect(router.currentRoute.value.name).toBe('forbidden');
     });
 
+    it('accepts any one of several permissions', async () => {
+        authApi.fetchMe.mockResolvedValue({ id: 4, roles: ['staff'], permissions: ['orders.view_assigned'] });
+        const router = makeRouter();
+
+        await router.push('/orders');
+
+        expect(router.currentRoute.value.name).toBe('orders.index');
+    });
+
     it('asks the server only once who is logged in', async () => {
         authApi.fetchMe.mockResolvedValue({ id: 1, roles: ['admin'], permissions: [] });
         const router = makeRouter();

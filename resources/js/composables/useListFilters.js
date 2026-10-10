@@ -10,6 +10,10 @@ import { useRoute, useRouter } from 'vue-router';
  *   update({ status })  → writes to the URL; any filter change resets to page 1
  *   search              → v-model for the search box, applied after 300 ms of no typing
  *
+ * Picked filters, sorting and pages add a browser history entry, so Back undoes them.
+ * Typing in the search box replaces the entry instead, so Back doesn't step through
+ * every pause in typing.
+ *
  * @param {Record<string, string|number|string[]>} defaults
  */
 export function useListFilters(defaults, { debounceMs = 300 } = {}) {
@@ -35,7 +39,7 @@ export function useListFilters(defaults, { debounceMs = 300 } = {}) {
         return values;
     });
 
-    function update(changes) {
+    function update(changes, { replace = false } = {}) {
         const next = { ...filters.value, ...changes };
         if (!('page' in changes)) {
             next.page = 1;
@@ -50,7 +54,7 @@ export function useListFilters(defaults, { debounceMs = 300 } = {}) {
             }
         }
 
-        return router.replace({ query });
+        return replace ? router.replace({ query }) : router.push({ query });
     }
 
     // Search box: typed instantly, sent to the URL (and the API) after a pause.
@@ -60,7 +64,7 @@ export function useListFilters(defaults, { debounceMs = 300 } = {}) {
         clearTimeout(timer);
         timer = setTimeout(() => {
             if (value !== (filters.value.search ?? '')) {
-                update({ search: value });
+                update({ search: value }, { replace: true });
             }
         }, debounceMs);
     });

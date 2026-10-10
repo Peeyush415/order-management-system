@@ -42,6 +42,21 @@ describe('useListFilters', () => {
         expect(router.currentRoute.value.query).toEqual({ status: 'inactive', page: '2' });
     });
 
+    it('lets the back button undo a picked filter, but not each search pause', async () => {
+        const { api, router } = await setup('/list');
+        const replace = vi.spyOn(router, 'replace');
+        const push = vi.spyOn(router, 'push');
+
+        await api.update({ status: 'active' });
+        expect(push).toHaveBeenCalledWith({ query: { status: 'active' } });
+
+        api.search.value = 'ram';
+        await nextTick();
+        vi.advanceTimersByTime(300);
+        await vi.waitFor(() => expect(replace).toHaveBeenCalledWith({ query: { status: 'active', search: 'ram' } }));
+        expect(push).toHaveBeenCalledTimes(1);
+    });
+
     it('applies the search box only after typing stops', async () => {
         const { api, router } = await setup('/list');
 

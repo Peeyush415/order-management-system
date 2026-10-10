@@ -4,13 +4,19 @@ import { useAuthStore } from '@/stores/auth';
 /**
  * meta.requiresAuth: logged-in users only.
  * meta.guestOnly: logged-out users only (login page).
- * meta.permission: also needs this permission, e.g. 'orders.delete'.
+ * meta.permission: also needs this permission, e.g. 'orders.delete', or any of a list.
  * meta.layout: false renders the page without sidebar and header.
  * meta.title: shown in the header.
  */
 export const routes = [
     { path: '/login', name: 'login', component: () => import('@/pages/Login.vue'), meta: { guestOnly: true, layout: false } },
     { path: '/', name: 'home', component: () => import('@/pages/Home.vue'), meta: { requiresAuth: true, title: 'Dashboard' } },
+    {
+        path: '/orders',
+        name: 'orders.index',
+        component: () => import('@/pages/orders/OrderList.vue'),
+        meta: { requiresAuth: true, permission: ['orders.view_any', 'orders.view_assigned'], title: 'Orders' },
+    },
     {
         path: '/customers',
         name: 'customers.index',
@@ -74,7 +80,8 @@ export function setupGuards(router) {
             return { name: 'home' };
         }
 
-        if (to.meta.permission && !auth.can(to.meta.permission)) {
+        // One permission, or a list where any one is enough.
+        if (to.meta.permission && ![].concat(to.meta.permission).some((permission) => auth.can(permission))) {
             return { name: 'forbidden' };
         }
 

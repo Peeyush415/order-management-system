@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\LookupController;
 use App\Http\Controllers\Api\V1\OrderActivityController;
 use App\Http\Controllers\Api\V1\OrderAssignmentController;
 use App\Http\Controllers\Api\V1\OrderController;
@@ -27,6 +28,7 @@ Route::post('/auth/login', [AuthController::class, 'login'])
 Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
     Route::get('/auth/me', [AuthController::class, 'me'])->name('api.auth.me');
+    Route::get('/lookups', LookupController::class)->name('api.lookups');
 
     // ->can() runs the policy before the Form Request validates, so a user without
     // permission gets 403, not validation errors. Controllers still call Gate::authorize().
