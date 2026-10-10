@@ -18,6 +18,12 @@ export const routes = [
         meta: { requiresAuth: true, permission: ['orders.view_any', 'orders.view_assigned'], title: 'Orders' },
     },
     {
+        path: '/orders/:id',
+        name: 'orders.show',
+        component: () => import('@/pages/orders/OrderDetail.vue'),
+        meta: { requiresAuth: true, permission: ['orders.view_any', 'orders.view_assigned'], title: 'Order' },
+    },
+    {
         path: '/customers',
         name: 'customers.index',
         component: () => import('@/pages/customers/CustomerList.vue'),
