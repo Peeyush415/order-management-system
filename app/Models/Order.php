@@ -71,4 +71,19 @@ class Order extends Model
     {
         return $this->hasMany(OrderItem::class);
     }
+
+    public function statusHistories(): HasMany
+    {
+        return $this->hasMany(OrderStatusHistory::class)->latest()->latest('id');
+    }
+
+    public function notes(): HasMany
+    {
+        return $this->hasMany(OrderNote::class)->latest()->latest('id');
+    }
+
+    public function activities(): HasMany
+    {
+        return $this->hasMany(OrderActivity::class)->latest()->latest('id');
+    }
 }
