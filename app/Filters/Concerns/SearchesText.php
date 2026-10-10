@@ -36,8 +36,9 @@ trait SearchesText
             return;
         }
 
-        // Very short input: prefix match, which can still use an index (no leading %).
-        $prefix = addcslashes(implode(' ', $words), '%_\\').'%';
+        // Very short input: prefix match on the original text, which can still use an index
+        // (no leading %) and keeps characters like the dash in "CH-77".
+        $prefix = addcslashes(trim((string) $term), '%_\\').'%';
         $query->where(function (Builder $q) use ($prefixColumns, $prefix) {
             foreach ($prefixColumns as $column) {
                 $q->orWhere($column, 'like', $prefix);

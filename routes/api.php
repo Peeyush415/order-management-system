@@ -35,6 +35,7 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     });
 
     Route::controller(OrderController::class)->prefix('orders')->name('api.orders.')->group(function () {
+        Route::get('/', 'index')->name('index')->can('viewAny', Order::class);
         Route::post('/', 'store')->name('store')->can('create', Order::class);
     });
 

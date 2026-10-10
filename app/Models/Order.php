@@ -7,6 +7,7 @@ use App\Enums\OrderPriority;
 use App\Enums\OrderStatus;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -42,6 +43,24 @@ class Order extends Model
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Orders this user may see: everything with orders.view_any, only their assigned
+     * orders with orders.view_assigned, nothing otherwise. Applied to every order query,
+     * so staff can't reach other orders through a list, a filter or a guessed id.
+     */
+    public function scopeVisibleTo(Builder $query, User $user): Builder
+    {
+        if ($user->can('orders.view_any')) {
+            return $query;
+        }
+
+        if ($user->can('orders.view_assigned')) {
+            return $query->where('assigned_to', $user->id);
+        }
+
+        return $query->whereRaw('1 = 0');
     }
 
     /**

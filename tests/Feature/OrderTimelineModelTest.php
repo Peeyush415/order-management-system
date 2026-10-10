@@ -22,7 +22,7 @@ class OrderTimelineModelTest extends TestCase
         $order->statusHistories()->create(['from_status' => null, 'to_status' => OrderStatus::Draft, 'changed_by' => $user->id]);
         $order->statusHistories()->create(['from_status' => OrderStatus::Draft, 'to_status' => OrderStatus::Pending, 'changed_by' => $user->id, 'remarks' => 'Ready']);
 
-        $history = $order->statusHistories()->get();
+        $history = $order->statusHistories()->with('changedBy')->get();
 
         $this->assertSame(OrderStatus::Pending, $history->first()->to_status);
         $this->assertNull($history->last()->from_status);
