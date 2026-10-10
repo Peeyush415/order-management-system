@@ -46,7 +46,8 @@ return Application::configure(basePath: dirname(__DIR__))
                     $e->getStatusCode(),
                 )->withHeaders($e->getHeaders()),
                 // Unexpected errors: the details go to the log (reporting is separate), never to the client.
-                default => ApiResponse::error('Something went wrong. Please try again later.', 500),
+                default => ApiResponse::error
+                ('Something went wrong. Please try again later.', 500),
             };
         });
     })->create();

@@ -17,8 +17,10 @@ class ProductFactory extends Factory
     public function definition(): array
     {
         return [
-            'sku' => fake()->unique()->bothify('SKU-??##??'),
-            'name' => ucwords(fake()->words(fake()->numberBetween(2, 3), true)),
+            'sku' => strtoupper(fake()->unique()->bothify('SKU-??##??')),
+            'name' => fake()->randomElement(['Wireless', 'Ergonomic', 'Compact', 'Premium', 'Heavy Duty', 'Portable', 'Smart', 'Classic', 'Eco', 'Pro'])
+                .' '.fake()->randomElement(['Steel', 'Bamboo', 'Leather', 'Aluminium', 'Cotton', 'Glass', 'Carbon', 'Ceramic'])
+                .' '.fake()->randomElement(['Keyboard', 'Mouse', 'Desk Lamp', 'Backpack', 'Water Bottle', 'Notebook', 'Headphones', 'Office Chair', 'Monitor Stand', 'Charger', 'Coffee Mug', 'Phone Case']),
             'description' => fake()->optional(0.7)->sentence(12),
             'price' => fake()->numberBetween(5, 500) * 100, // cents: 5.00 to 500.00
             'tax_rate_bps' => fake()->randomElement([0, 500, 1000, 1800]),

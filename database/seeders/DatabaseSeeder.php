@@ -34,5 +34,7 @@ class DatabaseSeeder extends Seeder
                 ->create(['name' => $demo['name'], 'email' => $demo['email']])
                 ->assignRole($demo['role']);
         }
+
+        $this->call(DemoDataSeeder::class);
     }
 }
