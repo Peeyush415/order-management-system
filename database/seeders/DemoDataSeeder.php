@@ -11,6 +11,7 @@ use App\Models\Order;
 use App\Models\Product;
 use App\Models\User;
 use App\Services\OrderPricingCalculator;
+use Illuminate\Database\Console\Seeds\WithoutModelEvents;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
@@ -21,9 +22,12 @@ use Illuminate\Support\Facades\DB;
  * Every order is consistent: its status history follows a valid path, totals match
  * its items, and each product's stock equals the sum of its stock ledger rows.
  * Rows are built in memory and bulk-inserted (not via the services) for speed.
+ * Model events are off: the seeder writes its own audit rows, so the Auditable trait must not.
  */
 class DemoDataSeeder extends Seeder
 {
+    use WithoutModelEvents;
+
     private const ORDER_COUNT = 600;
 
     private const CHUNK = 500;

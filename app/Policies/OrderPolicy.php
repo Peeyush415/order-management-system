@@ -39,6 +39,17 @@ class OrderPolicy
         return $user->can('orders.delete');
     }
 
+    public function assign(User $user, Order $order): bool
+    {
+        return $user->can('orders.assign') && $this->view($user, $order);
+    }
+
+    /** Staff may add notes only to orders assigned to them. */
+    public function addNote(User $user, Order $order): bool
+    {
+        return $user->can('notes.create') && $this->view($user, $order);
+    }
+
     /** Route-level check: may this user change this order's status at all? */
     public function changeStatusOf(User $user, Order $order): bool
     {

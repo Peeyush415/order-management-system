@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\DiscountType;
 use App\Enums\OrderPriority;
 use App\Enums\OrderStatus;
+use App\Models\Concerns\Auditable;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -23,7 +24,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Order extends Model
 {
     /** @use HasFactory<OrderFactory> */
-    use HasFactory, SoftDeletes;
+    use Auditable, HasFactory, SoftDeletes;
 
     protected function casts(): array
     {
@@ -43,6 +44,20 @@ class Order extends Model
             'completed_at' => 'datetime',
             'cancelled_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Audit event names for the changes the assessment asks to track separately.
+     *
+     * @param  array<string, mixed>  $changes
+     */
+    protected function auditEvent(array $changes): string
+    {
+        return match (true) {
+            array_key_exists('status', $changes) => 'status_changed',
+            array_key_exists('assigned_to', $changes) => 'assignment_changed',
+            default => 'updated',
+        };
     }
 
     /**

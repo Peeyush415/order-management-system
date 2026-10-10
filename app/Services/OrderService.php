@@ -12,6 +12,7 @@ use App\Exceptions\OrderNotEditableException;
 use App\Exceptions\ProductUnavailableException;
 use App\Models\Order;
 use App\Models\OrderItem;
+use App\Models\OrderNote;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -53,7 +54,8 @@ class OrderService
             ])->save();
 
             // Derived from the id inside the transaction, so two requests can never share a number.
-            $order->forceFill(['order_number' => Order::numberFor($order->id)])->save();
+            // Saved quietly: it completes the creation, it is not an "update" for the audit log.
+            $order->forceFill(['order_number' => Order::numberFor($order->id)])->saveQuietly();
 
             $this->insertItems($order, $pricing);
 
@@ -128,6 +130,52 @@ class OrderService
             $this->recordActivity($order, $by, OrderActivityType::Updated, 'Order updated', ['changed' => $changed]);
 
             return $order;
+        });
+    }
+
+    /**
+     * Assigns the order to a manager/staff member, or unassigns it with null.
+     * The Auditable trait records this as "assignment_changed" with old and new ids.
+     *
+     * @throws OrderNotEditableException
+     */
+    public function assign(Order $order, ?int $assigneeId, User $by): Order
+    {
+        return DB::transaction(function () use ($order, $assigneeId, $by) {
+            $order = Order::query()->lockForUpdate()->findOrFail($order->id);
+
+            if ($order->status->isTerminal()) {
+                throw new OrderNotEditableException('Completed or cancelled orders cannot be reassigned.');
+            }
+            if ($order->assigned_to === $assigneeId) {
+                return $order;
+            }
+
+            $previous = $order->assigned_to;
+            $order->assigned_to = $assigneeId;
+            $order->version++;
+            $order->save();
+
+            $assignee = $assigneeId ? User::query()->find($assigneeId, ['id', 'name']) : null;
+            $this->recordActivity(
+                $order,
+                $by,
+                OrderActivityType::Assigned,
+                $assignee ? "Assigned to {$assignee->name}" : 'Unassigned',
+                ['from' => $previous, 'to' => $assigneeId],
+            );
+
+            return $order;
+        });
+    }
+
+    public function addNote(Order $order, string $body, User $by): OrderNote
+    {
+        return DB::transaction(function () use ($order, $body, $by) {
+            $note = $order->notes()->create(['user_id' => $by->id, 'body' => $body]);
+            $this->recordActivity($order, $by, OrderActivityType::NoteAdded, 'Note added', ['note_id' => $note->id]);
+
+            return $note;
         });
     }
 

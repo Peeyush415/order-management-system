@@ -3,7 +3,10 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\OrderActivityController;
+use App\Http\Controllers\Api\V1\OrderAssignmentController;
 use App\Http\Controllers\Api\V1\OrderController;
+use App\Http\Controllers\Api\V1\OrderNoteController;
 use App\Http\Controllers\Api\V1\OrderStatusController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProductStockController;
@@ -49,6 +52,12 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::post('/status', 'store')->name('status')->can('changeStatusOf', 'order');
         Route::get('/allowed-transitions', 'allowedTransitions')->name('allowed-transitions')->can('view', 'order');
         Route::get('/status-history', 'history')->name('status-history')->can('view', 'order');
+    });
+    Route::prefix('orders/{order}')->name('api.orders.')->group(function () {
+        Route::post('/assign', [OrderAssignmentController::class, 'store'])->name('assign')->can('assign', 'order');
+        Route::get('/notes', [OrderNoteController::class, 'index'])->name('notes.index')->can('view', 'order');
+        Route::post('/notes', [OrderNoteController::class, 'store'])->name('notes.store')->can('addNote', 'order');
+        Route::get('/activities', [OrderActivityController::class, 'index'])->name('activities')->can('view', 'order');
     });
 
     // No DELETE: a product leaves the catalogue by becoming discontinued.

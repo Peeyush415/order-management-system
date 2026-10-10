@@ -5,8 +5,7 @@ namespace App\Http\Requests\Order;
 use App\Enums\DiscountType;
 use App\Enums\OrderPriority;
 use App\Enums\OrderStatus;
-use App\Models\User;
-use Closure;
+use App\Rules\AssignableUser;
 use Illuminate\Foundation\Http\FormRequest;
 use Illuminate\Validation\Rule;
 
@@ -32,7 +31,7 @@ class StoreOrderRequest extends FormRequest
             'status' => ['sometimes', Rule::in([OrderStatus::Draft->value, OrderStatus::Pending->value])],
             'priority' => ['sometimes', Rule::enum(OrderPriority::class)],
             'order_date' => ['sometimes', 'date_format:Y-m-d'],
-            'assigned_to' => ['nullable', 'integer', $this->assignableUser()],
+            'assigned_to' => ['nullable', 'integer', new AssignableUser],
             'discount_type' => ['nullable', Rule::enum(DiscountType::class)],
             'discount_value' => [
                 'nullable', 'required_with:discount_type', 'integer', 'min:0',
@@ -64,23 +63,5 @@ class StoreOrderRequest extends FormRequest
             'items.*.quantity.min' => 'Quantity must be greater than 0.',
             'discount_value.max' => 'A percentage discount cannot exceed 100%.',
         ];
-    }
-
-    /**
-     * Orders can be assigned only to active managers or staff.
-     */
-    private function assignableUser(): Closure
-    {
-        return function (string $attribute, mixed $value, Closure $fail) {
-            $assignable = User::query()
-                ->whereKey($value)
-                ->where('is_active', true)
-                ->role(['manager', 'staff'])
-                ->exists();
-
-            if (! $assignable) {
-                $fail('The assignee must be an active manager or staff member.');
-            }
-        };
     }
 }
