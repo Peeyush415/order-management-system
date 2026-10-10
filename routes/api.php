@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\OrderController;
+use App\Http\Controllers\Api\V1\OrderStatusController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Models\Customer;
 use App\Models\Order;
@@ -40,6 +41,13 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::get('/{order}', 'show')->name('show')->can('view', 'order');
         Route::put('/{order}', 'update')->name('update')->can('update', 'order');
         Route::delete('/{order}', 'destroy')->name('destroy')->can('delete', 'order');
+    });
+
+    // Which target status a user may choose is checked in the controller, once the input is known.
+    Route::controller(OrderStatusController::class)->prefix('orders/{order}')->name('api.orders.')->group(function () {
+        Route::post('/status', 'store')->name('status')->can('changeStatusOf', 'order');
+        Route::get('/allowed-transitions', 'allowedTransitions')->name('allowed-transitions')->can('view', 'order');
+        Route::get('/status-history', 'history')->name('status-history')->can('view', 'order');
     });
 
     // No DELETE: a product leaves the catalogue by becoming discontinued.

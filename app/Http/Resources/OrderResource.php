@@ -14,6 +14,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
  */
 class OrderResource extends JsonResource
 {
+    /** Eager loads for the full order view, with only the columns this resource uses. */
+    public const DETAIL_RELATIONS = [
+        'customer:id,name,email,phone,company,address_line1,address_line2,city,state,postal_code,country',
+        'assignee:id,name',
+        'creator:id,name',
+        'items',
+    ];
+
     /**
      * @return array<string, mixed>
      */

@@ -23,14 +23,6 @@ class OrderController extends Controller
 
     private const LIST_RELATIONS = ['customer:id,name,email', 'assignee:id,name'];
 
-    /** Eager loads for the full order view, with only the columns the resource uses. */
-    private const DETAIL_RELATIONS = [
-        'customer:id,name,email,phone,company,address_line1,address_line2,city,state,postal_code,country',
-        'assignee:id,name',
-        'creator:id,name',
-        'items',
-    ];
-
     public function __construct(private readonly OrderService $orders) {}
 
     public function index(ListOrdersRequest $request): JsonResponse
@@ -55,14 +47,14 @@ class OrderController extends Controller
 
         $order = $this->orders->create($request->validated(), $request->user());
 
-        return ApiResponse::created(new OrderResource($order->load(self::DETAIL_RELATIONS)), 'Order created successfully');
+        return ApiResponse::created(new OrderResource($order->load(OrderResource::DETAIL_RELATIONS)), 'Order created successfully');
     }
 
     public function show(Order $order): JsonResponse
     {
         Gate::authorize('view', $order);
 
-        return ApiResponse::success(new OrderResource($order->load(self::DETAIL_RELATIONS)));
+        return ApiResponse::success(new OrderResource($order->load(OrderResource::DETAIL_RELATIONS)));
     }
 
     public function update(UpdateOrderRequest $request, Order $order): JsonResponse
@@ -71,7 +63,7 @@ class OrderController extends Controller
 
         $order = $this->orders->update($order, $request->validated(), $request->user());
 
-        return ApiResponse::success(new OrderResource($order->load(self::DETAIL_RELATIONS)), 'Order updated successfully');
+        return ApiResponse::success(new OrderResource($order->load(OrderResource::DETAIL_RELATIONS)), 'Order updated successfully');
     }
 
     public function destroy(Order $order): Response

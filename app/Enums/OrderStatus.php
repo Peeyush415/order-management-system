@@ -3,8 +3,12 @@
 namespace App\Enums;
 
 /**
- * Order lifecycle states. The transition rules (state machine) are added in the status workflow step;
- * the helpers below are the edit/delete rules that depend only on the current state.
+ * Order lifecycle states and the state machine between them:
+ *
+ *   draft ⇄ pending → confirmed → processing → ready → completed
+ *   every non-terminal state → cancelled; completed and cancelled are final.
+ *
+ * Who may make a transition is decided by OrderPolicy::changeStatus().
  */
 enum OrderStatus: string
 {
@@ -27,6 +31,26 @@ enum OrderStatus: string
             self::Completed => 'Completed',
             self::Cancelled => 'Cancelled',
         };
+    }
+
+    /**
+     * @return list<self>
+     */
+    public function allowedTransitions(): array
+    {
+        return match ($this) {
+            self::Draft => [self::Pending, self::Cancelled],
+            self::Pending => [self::Draft, self::Confirmed, self::Cancelled],
+            self::Confirmed => [self::Processing, self::Cancelled],
+            self::Processing => [self::Ready, self::Cancelled],
+            self::Ready => [self::Completed, self::Cancelled],
+            self::Completed, self::Cancelled => [],
+        };
+    }
+
+    public function canTransitionTo(self $to): bool
+    {
+        return in_array($to, $this->allowedTransitions(), true);
     }
 
     /** Customer, items and pricing can change only before stock is deducted. */
