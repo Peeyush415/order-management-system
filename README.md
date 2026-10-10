@@ -45,7 +45,13 @@ php artisan queue:work          # terminal 2
 
 ### Demo logins
 
-Demo users (admin / manager / staff, password `password`) are added with the role seeder. This table will list them.
+All demo users have the password `password`.
+
+| Role    | Email | Can do |
+|---------|-------|--------|
+| Admin   | `admin@oms.test` | Everything, including users, roles, audit log and deleting orders |
+| Manager | `manager1@oms.test`, `manager2@oms.test` | Dashboard, all orders, customers; no deletes, no product or user management |
+| Staff   | `staff1@oms.test`, `staff2@oms.test`, `staff3@oms.test` | Only orders assigned to them: change status (limited) and add notes |
 
 ## Environment variables
 
