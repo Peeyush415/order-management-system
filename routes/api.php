@@ -3,7 +3,9 @@
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\ProductController;
 use App\Models\Customer;
+use App\Models\Product;
 use Illuminate\Support\Facades\Route;
 
 // Every route in this file is prefixed with /api/v1 (see bootstrap/app.php).
@@ -28,5 +30,14 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
         Route::put('/{customer}', 'update')->name('update')->can('update', 'customer');
         Route::patch('/{customer}/status', 'updateStatus')->name('status')->can('update', 'customer');
         Route::delete('/{customer}', 'destroy')->name('destroy')->can('delete', 'customer');
+    });
+
+    // No DELETE: a product leaves the catalogue by becoming discontinued.
+    Route::controller(ProductController::class)->prefix('products')->name('api.products.')->group(function () {
+        Route::get('/', 'index')->name('index')->can('viewAny', Product::class);
+        Route::post('/', 'store')->name('store')->can('create', Product::class);
+        Route::get('/{product}', 'show')->name('show')->can('view', 'product');
+        Route::put('/{product}', 'update')->name('update')->can('update', 'product');
+        Route::patch('/{product}/status', 'updateStatus')->name('status')->can('update', 'product');
     });
 });
