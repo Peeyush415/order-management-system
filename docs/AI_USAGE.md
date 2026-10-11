@@ -1,14 +1,47 @@
 # AI Usage
 
-This project was built with an AI coding assistant (Claude Code) as a pair programmer.
+## Tools
+
+- **Claude Code** (Anthropic), used in the terminal as a pair programmer for the whole project.
 
 ## How it was used
 
 - I wrote the design (tables, flows, rules) and a step-by-step build plan before coding. The assistant worked one step at a time from that plan.
 - For each step, the assistant proposed the work first. I approved it before any file changed.
-- The assistant ran the checks (`php artisan test`, `pint --test`, `npm run test`, `npm run build`) before each step was marked done.
+- The assistant ran the checks (`php artisan test`, `pint --test`, `npm run test`, `npm run build`) before each step was marked done, and verified behaviour against the running app with real data (curl, SQL cross-checks, the browser).
 - I reviewed every diff and made every commit myself.
 - When generated code differed from the plan, the assistant flagged it and I made the call.
+
+## What was generated with AI
+
+Most of the code, tests and documentation: migrations, models, services, controllers, requests, policies, the Vue pages and components, PHPUnit and Vitest tests, seeders, the Postman collection and these docs.
+
+## What I decided, reviewed or checked myself
+
+- The plan and step order, and approval of every step before it started.
+- Design decisions when there was a real choice, for example:
+  - permission checks on the route so that a forbidden request gets 403 before validation runs;
+  - adding `deleted_at` to the dashboard covering index after `EXPLAIN` showed it was not covering;
+  - accepting that order activity rows are written by the services instead of a listener (a deviation from the plan);
+  - removing the installer's AI-agent files from the repository.
+- Review of every diff before committing, and manual checks of each screen in the browser (for example asking why the dashboard showed only "My work", which turned out to be a staff session).
+
+## AI-generated code that needed significant changes
+
+Each of these was caught by a failing test, `EXPLAIN`, or checking the running app, and then fixed:
+
+- **FULLTEXT search tests** passed nothing at first: InnoDB FULLTEXT ignores uncommitted rows, so tests inside `RefreshDatabase` transactions could never match. Moved to `DatabaseTruncation`.
+- **Search with short terms** like `CH-77` failed because the fallback stripped the dash; it now uses the original term.
+- **Login without a session** returned 500 ("Session store not set"); it now returns 400.
+- **Lazy loading:** turning on `preventLazyLoading` exposed a missing eager load, and a query-count test exposed the first-request permission cache warm-up.
+- **Vue Query mutations** received an unexpected second argument, so `mutationFn`s were wrapped. The `v-can` directive read the wrong Pinia instance and was rewritten as `createCan(pinia)`.
+- **List filters** used `router.replace`, so Back did not undo a filter; picked filters now push history entries.
+- **Dashboard index** was not covering because of soft deletes; a migration added `deleted_at`.
+- **Roles endpoint** returned 500: spatie's `users()` relation resolves the model from the `sanctum` guard inside API requests. Counts now come from `model_has_roles`.
+- **Audit log display** dropped the space between label and value (Vue template whitespace), fixed with a helper.
+- **Mobile layout:** two detail pages overflowed on phones (grid without a base column count) and the notification panel hung off-screen; fixed after measuring every page at 390px.
+- **Seeder:** the first version had inconsistent actors between history and ledger, a skewed status mix and lorem-ipsum product names; all rewritten.
+- Several generated edits that went through shell scripts lost backslashes in PHP `use` statements; these were caught by fatal errors in the next test run and rewritten.
 
 ## Step log
 
@@ -49,3 +82,4 @@ One line per finished step: what the assistant did, and what I checked or change
 - **7.4 Users & roles management, audit log screen.** Users API (`users.manage`): list with search/role/status filters, create (hashed password, exactly one role), update (blank password keeps it), activate/deactivate; no delete, so history keeps names. `UserService` refuses self-deactivation, removing your own admin role, and removing the last active admin; it locks all active admin rows in id order before counting, so two concurrent requests cannot both pass. Roles API: role list with permissions and user counts (read straight from `model_has_roles`, because spatie's `users()` relation resolves the user model from the current guard, which is `sanctum` inside API requests), grouped permissions, and `PUT /roles/{role}/permissions`; the admin role is locked to every permission. A new `AuditLogger` service writes every audit row; `User` is now `Auditable` (password never stored), and role, password and permission changes write `role_changed`, `password_changed` and `permissions_changed` rows (extra events beyond PLAN's list). Login now saves `last_login_at` quietly so it does not flood the log. Audit log API (`audit.view`) filters by user, event, record type/id and dates on the existing indexes, eager-loads subjects including soft-deleted ones, and `AuditValueFormatter` turns raw values into readable text (enum labels, money, user/customer names in one query each per page), e.g. "Assigned to: Staff Three → Staff One". Screens: Users list/form (self-protection in the UI too), a Roles permission matrix (only changed roles are saved), and an Audit log page with filters. Tests: UserApiTest 9, RoleApiTest 6, AuditLogApiTest 5 (272/272 in both orders) and admin.spec 6 (Vitest 101/101). Real server: manager gets 403, admin self-deactivate gets 422, a staff permission was added and reverted (two audit rows), and seeded audit rows render correctly.
 - **8.1 Frontend tests + responsive pass.** Filled the remaining PLAN §11 frontend gaps: StatusBadge/PriorityBadge (label and colour per value), date utils (calendar dates never shift by time zone), and a navigation spec that checks every sidebar link against the real route table (same permission, only login and not-found are public) and the links each seeded role sees. Responsive pass at 390px in Chrome: every screen was loaded in a 390px iframe and checked for page-level horizontal overflow and off-screen elements. Two pages overflowed (order detail by 337px, customer detail by 99px): a `grid` with only `lg:grid-cols-*` sizes its single mobile column to the widest table, so the table's own `overflow-x-auto` never applied; every such grid now starts with `grid-cols-1` (`minmax(0,1fr)`). A screenshot showed what the measurement missed: on phones the notification panel hung off the left edge, so it now spans the screen below the header on small screens and stays anchored under the bell from `sm` up. Modals fit. A quick accessibility scan (unnamed inputs/buttons on every page) found one issue: CustomerPicker's label was not tied to its input and had no name when used without a label; it now has `for`/`id` and an `aria-label` fallback. Vitest 120/120, backend 272/272.
 - **8.2 API docs.** Added `docs/postman/OMS.postman_collection.json` (48 requests in 12 folders, 83 saved examples) and `docs/API.md` (auth flow, response envelope, status codes, and a table of all 46 API routes plus the CSRF cookie route with access rules and parameters). Both are generated from one definition by a throwaway script (kept outside the repo) that ran every request against the dev server, so every example is a real response: success and the relevant errors (401, 403, 404, 409 stale version, 419 CSRF, 422 validation and business rules such as insufficient stock or invalid transition, 429 login throttle). The same per-request test scripts were executed in Node through a small `pm` shim during capture, so the variables the collection sets (ids, order version) are the ones it uses. Collection scripts add `Accept`, `Referer` and `X-XSRF-TOKEN` (from the `XSRF-TOKEN` cookie), which Sanctum SPA auth needs outside a browser. Verified with `npx newman run`: 48 requests, 48 assertions, 0 failures, end to end. List examples are shortened to two items. The demo database was reset with `migrate:fresh --seed` afterwards to remove the records the capture and newman runs created.
+- **8.3 README, technical notes, AI usage.** Rewrote the README around the assessment's required sections (overview and features, stack, installation, environment, database and seeders, API docs, architecture with a request-flow diagram, a trade-offs table, tests, layout, AI usage). Added `docs/TECHNICAL_NOTES.md`: architecture, major decisions, concurrency (what happens when two users update the same order), challenges, performance, scaling to 1 million orders, security with known gaps, and future improvements. Expanded the top of this file into tools, what was generated, what was decided and reviewed by hand, and the generated code that needed significant changes. Removed `CLAUDE.md` and `AGENTS.md` that the Laravel installer had added (Laravel Boost setup instructions unrelated to this project), with my approval. One overstated README claim ("every query has a matching index") was softened to what `EXPLAIN` actually showed.
