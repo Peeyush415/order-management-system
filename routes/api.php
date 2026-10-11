@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\DashboardController;
@@ -13,10 +14,14 @@ use App\Http\Controllers\Api\V1\OrderNoteController;
 use App\Http\Controllers\Api\V1\OrderStatusController;
 use App\Http\Controllers\Api\V1\ProductController;
 use App\Http\Controllers\Api\V1\ProductStockController;
+use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\UserController;
 use App\Models\Customer;
 use App\Models\Order;
 use App\Models\Product;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
+use Spatie\Permission\Models\Role;
 
 // Every route in this file is prefixed with /api/v1 (see bootstrap/app.php).
 
@@ -91,4 +96,21 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/products/{product}/stock-adjustments', [ProductStockController::class, 'store'])
         ->name('api.products.stock-adjustments')
         ->can('update', 'product');
+
+    // No DELETE: an account that leaves is deactivated, so its history keeps a name.
+    Route::controller(UserController::class)->prefix('users')->name('api.users.')->group(function () {
+        Route::get('/', 'index')->name('index')->can('viewAny', User::class);
+        Route::post('/', 'store')->name('store')->can('create', User::class);
+        Route::get('/{user}', 'show')->name('show')->can('view', 'user');
+        Route::put('/{user}', 'update')->name('update')->can('update', 'user');
+        Route::patch('/{user}/status', 'updateStatus')->name('status')->can('update', 'user');
+    });
+
+    Route::controller(RoleController::class)->name('api.roles.')->group(function () {
+        Route::get('/roles', 'index')->name('index')->can('viewAny', Role::class);
+        Route::get('/permissions', 'permissions')->name('permissions')->can('viewAny', Role::class);
+        Route::put('/roles/{role}/permissions', 'updatePermissions')->name('permissions.update')->can('update', 'role');
+    });
+
+    Route::get('/audit-logs', [AuditLogController::class, 'index'])->name('api.audit-logs.index')->can('audit.view');
 });

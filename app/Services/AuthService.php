@@ -30,7 +30,8 @@ class AuthService
 
         /** @var User $user */
         $user = Auth::guard('web')->user();
-        $user->forceFill(['last_login_at' => now()])->save();
+        // Quietly: a login is not a data change, so it does not belong in the audit log.
+        $user->forceFill(['last_login_at' => now()])->saveQuietly();
 
         return $user;
     }

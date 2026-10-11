@@ -9,6 +9,7 @@ export const navigation = [
     { label: 'Customers', route: 'customers.index', permission: 'customers.view' },
     { label: 'Products', route: 'products.index', permission: 'products.view' },
     { label: 'Users', route: 'users.index', permission: 'users.manage' },
+    { label: 'Roles', route: 'roles.index', permission: 'roles.manage' },
     { label: 'Audit log', route: 'audit-logs.index', permission: 'audit.view' },
 ];
 

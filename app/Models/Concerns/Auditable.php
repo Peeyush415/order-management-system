@@ -2,9 +2,8 @@
 
 namespace App\Models\Concerns;
 
-use App\Models\AuditLog;
+use App\Services\AuditLogger;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Str;
 
 /**
  * Writes an audit_logs row on create, update, delete and restore, with only the
@@ -62,15 +61,6 @@ trait Auditable
 
     private function writeAudit(string $event, ?array $old, ?array $new): void
     {
-        AuditLog::create([
-            'user_id' => auth()->id(),
-            'event' => $event,
-            'auditable_type' => $this->getMorphClass(),
-            'auditable_id' => $this->getKey(),
-            'old_values' => $old ?: null,
-            'new_values' => $new ?: null,
-            'ip_address' => request()->ip(),
-            'user_agent' => Str::limit((string) request()->userAgent(), 255, ''),
-        ]);
+        app(AuditLogger::class)->record($this, $event, $old, $new);
     }
 }

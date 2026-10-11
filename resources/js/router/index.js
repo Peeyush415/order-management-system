@@ -78,6 +78,36 @@ export const routes = [
         meta: { requiresAuth: true, permission: 'products.manage', title: 'Edit product' },
     },
     {
+        path: '/users',
+        name: 'users.index',
+        component: () => import('@/pages/users/UserList.vue'),
+        meta: { requiresAuth: true, permission: 'users.manage', title: 'Users' },
+    },
+    {
+        path: '/users/new',
+        name: 'users.create',
+        component: () => import('@/pages/users/UserForm.vue'),
+        meta: { requiresAuth: true, permission: 'users.manage', title: 'New user' },
+    },
+    {
+        path: '/users/:id/edit',
+        name: 'users.edit',
+        component: () => import('@/pages/users/UserForm.vue'),
+        meta: { requiresAuth: true, permission: 'users.manage', title: 'Edit user' },
+    },
+    {
+        path: '/roles',
+        name: 'roles.index',
+        component: () => import('@/pages/Roles.vue'),
+        meta: { requiresAuth: true, permission: 'roles.manage', title: 'Roles & permissions' },
+    },
+    {
+        path: '/audit-logs',
+        name: 'audit-logs.index',
+        component: () => import('@/pages/AuditLogs.vue'),
+        meta: { requiresAuth: true, permission: 'audit.view', title: 'Audit log' },
+    },
+    {
         path: '/notifications',
         name: 'notifications',
         component: () => import('@/pages/Notifications.vue'),
