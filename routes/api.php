@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\CustomerController;
+use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\LookupController;
 use App\Http\Controllers\Api\V1\OrderActivityController;
@@ -29,6 +30,14 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
     Route::get('/auth/me', [AuthController::class, 'me'])->name('api.auth.me');
     Route::get('/lookups', LookupController::class)->name('api.lookups');
+
+    // Permission names work as abilities through spatie's Gate integration.
+    Route::controller(DashboardController::class)->prefix('dashboard')->name('api.dashboard.')->group(function () {
+        Route::get('/summary', 'summary')->name('summary')->can('dashboard.view');
+        Route::get('/revenue-trend', 'revenueTrend')->name('revenue-trend')->can('dashboard.view');
+        Route::get('/status-distribution', 'statusDistribution')->name('status-distribution')->can('dashboard.view');
+        Route::get('/my-work', 'myWork')->name('my-work')->can('orders.view_assigned');
+    });
 
     // ->can() runs the policy before the Form Request validates, so a user without
     // permission gets 403, not validation errors. Controllers still call Gate::authorize().

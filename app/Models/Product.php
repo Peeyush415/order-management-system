@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\ProductStatus;
 use App\Models\Concerns\Auditable;
+use App\Models\Concerns\BumpsDashboardCache;
 use Database\Factories\ProductFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -20,7 +21,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Product extends Model
 {
     /** @use HasFactory<ProductFactory> */
-    use Auditable, HasFactory, SoftDeletes;
+    use Auditable, BumpsDashboardCache, HasFactory, SoftDeletes;
 
     protected function casts(): array
     {

@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\CustomerStatus;
 use App\Models\Concerns\Auditable;
+use App\Models\Concerns\BumpsDashboardCache;
 use Database\Factories\CustomerFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -21,7 +22,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Customer extends Model
 {
     /** @use HasFactory<CustomerFactory> */
-    use Auditable, HasFactory, SoftDeletes;
+    use Auditable, BumpsDashboardCache, HasFactory, SoftDeletes;
 
     protected function casts(): array
     {

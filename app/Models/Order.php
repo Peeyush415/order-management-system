@@ -6,6 +6,7 @@ use App\Enums\DiscountType;
 use App\Enums\OrderPriority;
 use App\Enums\OrderStatus;
 use App\Models\Concerns\Auditable;
+use App\Models\Concerns\BumpsDashboardCache;
 use Database\Factories\OrderFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,7 +25,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 class Order extends Model
 {
     /** @use HasFactory<OrderFactory> */
-    use Auditable, HasFactory, SoftDeletes;
+    use Auditable, BumpsDashboardCache, HasFactory, SoftDeletes;
 
     protected function casts(): array
     {
