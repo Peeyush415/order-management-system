@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onBeforeUnmount, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, useId, watch } from 'vue';
 import { useCustomer, useCustomers } from '@/composables/useCustomers';
 
 /**
@@ -21,6 +21,7 @@ const term = ref('');
 const debounced = ref('');
 const open = ref(false);
 const root = ref(null);
+const id = useId();
 
 let timer = null;
 watch(term, (value) => {
@@ -59,7 +60,7 @@ onBeforeUnmount(() => {
 
 <template>
     <div ref="root" class="relative">
-        <label v-if="label" class="mb-1 block text-sm font-medium text-gray-700">{{ label }}</label>
+        <label v-if="label" :for="id" class="mb-1 block text-sm font-medium text-gray-700">{{ label }}</label>
 
         <div v-if="selectedId" class="flex items-center justify-between gap-2 rounded border border-gray-300 bg-white px-3 py-2 text-sm">
             <span class="truncate">{{ selected?.name ?? 'Loading…' }}</span>
@@ -67,8 +68,10 @@ onBeforeUnmount(() => {
         </div>
         <input
             v-else
+            :id="id"
             v-model="term"
             type="search"
+            :aria-label="label ? undefined : 'Filter by customer'"
             role="combobox"
             :aria-expanded="open"
             :placeholder="placeholder"

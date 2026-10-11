@@ -89,7 +89,7 @@ function clearFilters() {
                 <BaseButton v-if="canCreate" v-can="'orders.create'" class="ml-auto" @click="router.push({ name: 'orders.create' })">New order</BaseButton>
             </div>
 
-            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
+            <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-6">
                 <BaseMultiSelect label="Status" :options="lookups?.order_statuses ?? []" :model-value="filters.status" @update:model-value="update({ status: $event })" />
                 <BaseMultiSelect label="Priority" :options="lookups?.order_priorities ?? []" :model-value="filters.priority" @update:model-value="update({ priority: $event })" />
                 <CustomerPicker label="" placeholder="Customer…" :model-value="filters.customer_id" @update:model-value="update({ customer_id: $event })" />

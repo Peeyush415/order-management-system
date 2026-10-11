@@ -96,7 +96,7 @@ async function destroy() {
 
         <OrderSummary :order="order" />
 
-        <div class="grid gap-6 lg:grid-cols-3">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <div class="space-y-6 lg:col-span-2">
                 <OrderItemsTable :order="order" />
                 <NotesPanel :order-id="id" :can-add="canAddNote" />

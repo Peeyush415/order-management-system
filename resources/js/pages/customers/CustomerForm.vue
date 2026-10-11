@@ -60,7 +60,7 @@ async function submit() {
 
         <form v-else class="space-y-4" novalidate @submit.prevent="submit">
             <BaseCard :title="isEdit ? 'Edit customer' : 'New customer'">
-                <div class="grid gap-4 sm:grid-cols-2">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <BaseInput v-model.trim="form.name" label="Name" :error="error('name')" autocomplete="off" required />
                     <BaseInput v-model.trim="form.email" label="Email" type="email" :error="error('email')" required />
                     <BaseInput v-model.trim="form.phone" label="Phone" :error="error('phone')" />
@@ -69,7 +69,7 @@ async function submit() {
             </BaseCard>
 
             <BaseCard title="Address">
-                <div class="grid gap-4 sm:grid-cols-2">
+                <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                     <BaseInput v-model.trim="form.address_line1" label="Address line 1" :error="error('address_line1')" class="sm:col-span-2" required />
                     <BaseInput v-model.trim="form.address_line2" label="Address line 2" :error="error('address_line2')" class="sm:col-span-2" />
                     <BaseInput v-model.trim="form.city" label="City" :error="error('city')" required />

@@ -69,7 +69,7 @@ const cards = computed(() => {
                 <StatCard v-for="card in cards" :key="card.label" v-bind="card" />
             </div>
 
-            <div class="grid gap-6 lg:grid-cols-5">
+            <div class="grid grid-cols-1 gap-6 lg:grid-cols-5">
                 <RevenueTrendChart
                     class="lg:col-span-3"
                     :range="range"

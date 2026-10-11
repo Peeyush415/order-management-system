@@ -57,7 +57,11 @@ onBeforeUnmount(() => document.removeEventListener('click', onDocumentClick));
             </span>
         </button>
 
-        <div v-if="open" class="absolute right-0 z-30 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-lg border border-gray-200 bg-white shadow-lg">
+        <!-- On phones the bell sits mid-header, so the panel spans the screen instead of hanging off its left edge. -->
+        <div
+            v-if="open"
+            class="fixed inset-x-4 top-14 z-30 rounded-lg border border-gray-200 bg-white shadow-lg sm:absolute sm:inset-x-auto sm:top-auto sm:right-0 sm:mt-2 sm:w-80"
+        >
             <div class="flex items-center justify-between border-b border-gray-100 px-4 py-2">
                 <p class="text-sm font-semibold">Notifications</p>
                 <button v-if="count" type="button" class="text-xs text-blue-600 hover:underline" @click="markAllRead.mutate()">Mark all as read</button>

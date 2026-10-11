@@ -15,7 +15,7 @@ const discountTypes = [
 
 <template>
     <div class="space-y-6">
-        <div class="grid gap-4 sm:grid-cols-2">
+        <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <BaseSelect v-model="form.discount_type" label="Discount" :options="discountTypes" :error="errors.discount_type?.[0] ?? ''" />
             <BaseInput
                 v-if="form.discount_type"

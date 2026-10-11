@@ -16,7 +16,7 @@ const assignee = computed(() => lookups.value?.assignable_users.find((u) => Stri
 
 <template>
     <div class="space-y-6">
-        <dl class="grid gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
+        <dl class="grid grid-cols-1 gap-x-6 gap-y-3 text-sm sm:grid-cols-4">
             <div><dt class="text-gray-500">Customer</dt><dd class="font-medium">{{ customer?.name ?? '…' }}</dd></div>
             <div><dt class="text-gray-500">Order date</dt><dd>{{ formatDate(form.order_date) }}</dd></div>
             <div><dt class="text-gray-500">Priority</dt><dd>{{ priority }}</dd></div>

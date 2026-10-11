@@ -111,7 +111,7 @@ const adjusting = ref(false);
         <template v-else>
             <form class="space-y-4" novalidate @submit.prevent="submit">
                 <BaseCard :title="isEdit ? 'Edit product' : 'New product'">
-                    <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <BaseInput v-model.trim="form.sku" label="SKU" hint="Letters, numbers and dashes; saved in capitals." :error="error('sku')" />
                         <BaseInput v-model.trim="form.name" label="Name" :error="error('name')" />
                         <BaseInput v-model.trim="form.price" label="Price ($)" inputmode="decimal" placeholder="125.50" :error="error('price')" />

@@ -98,7 +98,7 @@ async function destroy() {
             </div>
         </div>
 
-        <div class="grid gap-6 lg:grid-cols-3">
+        <div class="grid grid-cols-1 gap-6 lg:grid-cols-3">
             <BaseCard title="Contact">
                 <dl class="space-y-2 text-sm">
                     <div><dt class="text-gray-500">Email</dt><dd>{{ customer.email }}</dd></div>

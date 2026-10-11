@@ -84,7 +84,7 @@ async function toggleStatus() {
         <div v-else class="space-y-4">
             <form class="space-y-4" novalidate @submit.prevent="submit">
                 <BaseCard :title="isEdit ? 'Edit user' : 'New user'">
-                    <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <BaseInput v-model.trim="form.name" label="Name" :error="error('name')" autocomplete="off" required />
                         <BaseInput v-model.trim="form.email" label="Email" type="email" :error="error('email')" autocomplete="off" required />
                         <BaseSelect
@@ -101,7 +101,7 @@ async function toggleStatus() {
                 </BaseCard>
 
                 <BaseCard title="Password">
-                    <div class="grid gap-4 sm:grid-cols-2">
+                    <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
                         <BaseInput
                             v-model="form.password"
                             :label="isEdit ? 'New password' : 'Password'"
