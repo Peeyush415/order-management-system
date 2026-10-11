@@ -1,0 +1,4537 @@
+{
+  "info": {
+    "name": "Order Management System API",
+    "description": "REST API of the Order Management System (Laravel 13, `/api/v1`).\n\n**Start:** run `composer run dev`, then **Auth → Get CSRF cookie** and **Auth → Login** (demo admin from the seeder). Or run the whole collection in order with the Collection Runner / `npx newman run docs/postman/OMS.postman_collection.json`: requests save the ids they create into collection variables for the next ones.\n\n**Auth:** Sanctum SPA cookie sessions. Collection scripts send `Accept: application/json`, a `Referer` from `baseUrl`, and copy the `XSRF-TOKEN` cookie into `X-XSRF-TOKEN`.\n\n**Responses:** `{ success, message, data, meta? }`. Errors: `{ success: false, message, errors? }` with 401 (not logged in), 403 (no permission), 404, 409 (version conflict), 419 (CSRF), 422 (validation or business rule), 429 (too many attempts).\n\n**Money** is integer cents (`36300` = $363.00) with `*_formatted` strings; tax rates are basis points (`1000` = 10%).\n\nExamples are real responses from the seeded demo data; list examples are shortened to two items. Full overview: `docs/API.md`.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000",
+      "description": "Where `composer run dev` serves the app."
+    },
+    {
+      "key": "email",
+      "value": "admin@oms.test",
+      "description": "Demo admin from the seeder (manager1@oms.test, staff1@oms.test… also exist)."
+    },
+    {
+      "key": "password",
+      "value": "password",
+      "description": "Demo password for every seeded user."
+    },
+    {
+      "key": "xsrfToken",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    },
+    {
+      "key": "adminId",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    },
+    {
+      "key": "staffId",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    },
+    {
+      "key": "orderCustomerId",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    },
+    {
+      "key": "customerId",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    },
+    {
+      "key": "customerEmail",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    },
+    {
+      "key": "productId",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    },
+    {
+      "key": "productSku",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    },
+    {
+      "key": "orderId",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    },
+    {
+      "key": "orderVersion",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    },
+    {
+      "key": "userId",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    },
+    {
+      "key": "userEmail",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    },
+    {
+      "key": "staffRoleId",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    },
+    {
+      "key": "adminRoleId",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    },
+    {
+      "key": "notificationId",
+      "value": "",
+      "description": "Set by the request scripts while the collection runs."
+    }
+  ],
+  "event": [
+    {
+      "listen": "prerequest",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Sanctum treats the request as a first-party SPA request only with a matching Referer.",
+          "pm.request.headers.upsert({ key: 'Accept', value: 'application/json' });",
+          "pm.request.headers.upsert({ key: 'Referer', value: pm.collectionVariables.get('baseUrl') + '/' });",
+          "const token = pm.collectionVariables.get('xsrfToken');",
+          "if (token) pm.request.headers.upsert({ key: 'X-XSRF-TOKEN', value: token });"
+        ]
+      }
+    },
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "// Keep the latest CSRF token (Laravel refreshes the XSRF-TOKEN cookie on responses).",
+          "const cookie = pm.cookies.get('XSRF-TOKEN');",
+          "if (cookie) pm.collectionVariables.set('xsrfToken', decodeURIComponent(cookie));"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "Auth",
+      "description": "Sanctum SPA cookie auth. Run **Get CSRF cookie** first, then **Login**. The collection scripts copy the `XSRF-TOKEN` cookie into the `X-XSRF-TOKEN` header and send a `Referer` from `baseUrl` on every request, which Sanctum needs to treat the request as stateful. The session cookie then authenticates the following requests.",
+      "item": [
+        {
+          "name": "Get CSRF cookie",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.expect(pm.response.code).to.be.oneOf([204]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/sanctum/csrf-cookie",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "sanctum",
+                "csrf-cookie"
+              ]
+            },
+            "description": "Sets the `XSRF-TOKEN` and session cookies. Returns 204.\n\n**Auth:** Public"
+          },
+          "response": [
+            {
+              "name": "204 No Content",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/sanctum/csrf-cookie"
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": ""
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('adminId', json.data.id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/login",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Starts a session. Wrong credentials and deactivated accounts get the same 422 message.\n\n**Auth:** Public (throttled: 5 attempts/min per email + IP)"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/auth/login"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@oms.test\",\n  \"password\": \"password\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Logged in successfully\",\n  \"data\": {\n    \"id\": 1,\n    \"name\": \"Admin User\",\n    \"email\": \"admin@oms.test\",\n    \"is_active\": true,\n    \"last_login_at\": \"2026-10-11T10:09:22+00:00\",\n    \"roles\": [\n      \"admin\"\n    ],\n    \"permissions\": [\n      \"audit.view\",\n      \"customers.create\",\n      \"customers.delete\",\n      \"customers.update\",\n      \"customers.view\",\n      \"dashboard.view\",\n      \"notes.create\",\n      \"orders.assign\",\n      \"orders.cancel\",\n      \"orders.change_status\",\n      \"orders.create\",\n      \"orders.delete\",\n      \"orders.update\",\n      \"orders.view_any\",\n      \"orders.view_assigned\",\n      \"products.manage\",\n      \"products.view\",\n      \"reports.view\",\n      \"roles.manage\",\n      \"users.manage\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "422 Wrong credentials",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/auth/login"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@oms.test\",\n  \"password\": \"wrong-password\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"These credentials do not match our records.\",\n  \"errors\": {\n    \"email\": [\n      \"These credentials do not match our records.\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "419 Missing CSRF token",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/auth/login"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"admin@oms.test\",\n  \"password\": \"password\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "unknown status",
+              "code": 419,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"CSRF token mismatch.\"\n}"
+            },
+            {
+              "name": "429 Too many attempts",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/auth/login"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"throttle-demo@oms.test\",\n  \"password\": \"wrong\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Too Many Requests",
+              "code": 429,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Too Many Attempts.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Current user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/me",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "The logged-in user with roles and permissions (the SPA hides buttons with them; the API still checks every request).\n\n**Auth:** Logged in"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/auth/me"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": {\n    \"id\": 1,\n    \"name\": \"Admin User\",\n    \"email\": \"admin@oms.test\",\n    \"is_active\": true,\n    \"last_login_at\": \"2026-10-11T10:09:22+00:00\",\n    \"roles\": [\n      \"admin\"\n    ],\n    \"permissions\": [\n      \"audit.view\",\n      \"customers.create\",\n      \"customers.delete\",\n      \"customers.update\",\n      \"customers.view\",\n      \"dashboard.view\",\n      \"notes.create\",\n      \"orders.assign\",\n      \"orders.cancel\",\n      \"orders.change_status\",\n      \"orders.create\",\n      \"orders.delete\",\n      \"orders.update\",\n      \"orders.view_any\",\n      \"orders.view_assigned\",\n      \"products.manage\",\n      \"products.view\",\n      \"reports.view\",\n      \"roles.manage\",\n      \"users.manage\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "401 Unauthenticated",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/auth/me"
+                }
+              },
+              "status": "Unauthorized",
+              "code": 401,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Unauthenticated.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Lookups & health",
+      "item": [
+        {
+          "name": "Health",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/health",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "health"
+              ]
+            },
+            "description": "API and database check.\n\n**Auth:** Public"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/health"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"API is up\",\n  \"data\": {\n    \"status\": \"ok\",\n    \"version\": \"v1\",\n    \"time\": \"2026-10-11T10:09:29+00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Lookups",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('staffId', json.data.assignable_users.find((u) => u.name.startsWith('Staff')).id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/lookups",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "lookups"
+              ]
+            },
+            "description": "Option lists for forms and filters: order statuses, priorities, and users an order can be assigned to (active managers and staff).\n\n**Auth:** Logged in"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/lookups"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": {\n    \"order_statuses\": [\n      {\n        \"value\": \"draft\",\n        \"label\": \"Draft\"\n      },\n      {\n        \"value\": \"pending\",\n        \"label\": \"Pending\"\n      },\n      {\n        \"value\": \"confirmed\",\n        \"label\": \"Confirmed\"\n      },\n      {\n        \"value\": \"processing\",\n        \"label\": \"Processing\"\n      },\n      {\n        \"value\": \"ready\",\n        \"label\": \"Ready\"\n      },\n      {\n        \"value\": \"completed\",\n        \"label\": \"Completed\"\n      },\n      {\n        \"value\": \"cancelled\",\n        \"label\": \"Cancelled\"\n      }\n    ],\n    \"order_priorities\": [\n      {\n        \"value\": 1,\n        \"label\": \"Low\"\n      },\n      {\n        \"value\": 2,\n        \"label\": \"Normal\"\n      },\n      {\n        \"value\": 3,\n        \"label\": \"High\"\n      },\n      {\n        \"value\": 4,\n        \"label\": \"Urgent\"\n      }\n    ],\n    \"assignable_users\": [\n      {\n        \"id\": 2,\n        \"name\": \"Manager One\"\n      },\n      {\n        \"id\": 3,\n        \"name\": \"Manager Two\"\n      },\n      {\n        \"id\": 4,\n        \"name\": \"Staff One\"\n      },\n      {\n        \"id\": 6,\n        \"name\": \"Staff Three\"\n      },\n      {\n        \"id\": 5,\n        \"name\": \"Staff Two\"\n      }\n    ]\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Dashboard",
+      "description": "Figures are cached for 5 minutes; any order, customer or product change clears the cache. Money values are integer cents with a `_formatted` string beside them.",
+      "item": [
+        {
+          "name": "Summary",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard/summary?from=2026-09-12&to=2026-10-11",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard",
+                "summary"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-09-12",
+                  "description": "Start date `Y-m-d` (default: 30 days ago)."
+                },
+                {
+                  "key": "to",
+                  "value": "2026-10-11",
+                  "description": "End date `Y-m-d`, ≥ from, range ≤ 366 days (default: today)."
+                }
+              ]
+            },
+            "description": "Order counts by status, booked revenue (confirmed → completed), average order value, customer and product totals for a date range.\n\n**Permission:** `dashboard.view`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/dashboard/summary?from=2026-09-12&to=2026-10-11"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": {\n    \"period\": {\n      \"from\": \"2026-09-12\",\n      \"to\": \"2026-10-11\"\n    },\n    \"total_orders\": 96,\n    \"orders_by_status\": {\n      \"draft\": 7,\n      \"pending\": 18,\n      \"confirmed\": 11,\n      \"processing\": 16,\n      \"ready\": 13,\n      \"completed\": 23,\n      \"cancelled\": 8\n    },\n    \"booked_orders\": 63,\n    \"revenue\": 16892390,\n    \"revenue_formatted\": \"168,923.90\",\n    \"average_order_value\": 268133,\n    \"average_order_value_formatted\": \"2,681.33\",\n    \"total_customers\": 100,\n    \"total_products\": 52\n  }\n}"
+            },
+            {
+              "name": "403 Forbidden (staff)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/dashboard/summary?from=2026-09-12&to=2026-10-11"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This action is unauthorized.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Revenue trend",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard/revenue-trend?period=week&from=2026-08-01&to=2026-10-11",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard",
+                "revenue-trend"
+              ],
+              "query": [
+                {
+                  "key": "period",
+                  "value": "week",
+                  "description": "`day` | `week` | `month` (default day)."
+                },
+                {
+                  "key": "from",
+                  "value": "2026-08-01",
+                  "description": "Start date `Y-m-d`."
+                },
+                {
+                  "key": "to",
+                  "value": "2026-10-11",
+                  "description": "End date `Y-m-d`."
+                }
+              ]
+            },
+            "description": "Booked revenue and order count per day, week or month. Empty periods are returned as zero.\n\n**Permission:** `dashboard.view`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/dashboard/revenue-trend?period=week&from=2026-08-01&to=2026-10-11"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": [\n    {\n      \"period_start\": \"2026-07-27\",\n      \"label\": \"Week of 27 Jul\",\n      \"revenue\": 1045941,\n      \"revenue_formatted\": \"10,459.41\",\n      \"orders\": 6\n    },\n    {\n      \"period_start\": \"2026-08-03\",\n      \"label\": \"Week of 03 Aug\",\n      \"revenue\": 3096275,\n      \"revenue_formatted\": \"30,962.75\",\n      \"orders\": 18\n    }\n  ]\n}"
+            },
+            {
+              "name": "422 Invalid period",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/dashboard/revenue-trend?period=year"
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"The selected period is invalid.\",\n  \"errors\": {\n    \"period\": [\n      \"The selected period is invalid.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Status distribution",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard/status-distribution?from=2026-09-12&to=2026-10-11",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard",
+                "status-distribution"
+              ],
+              "query": [
+                {
+                  "key": "from",
+                  "value": "2026-09-12",
+                  "description": "Start date."
+                },
+                {
+                  "key": "to",
+                  "value": "2026-10-11",
+                  "description": "End date."
+                }
+              ]
+            },
+            "description": "Order count for every status in the range.\n\n**Permission:** `dashboard.view`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/dashboard/status-distribution?from=2026-09-12&to=2026-10-11"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": [\n    {\n      \"value\": \"draft\",\n      \"label\": \"Draft\",\n      \"count\": 7\n    },\n    {\n      \"value\": \"pending\",\n      \"label\": \"Pending\",\n      \"count\": 18\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "My work (staff)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/dashboard/my-work",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "dashboard",
+                "my-work"
+              ]
+            },
+            "description": "The caller's own assigned orders: open count and count per status. The example is a staff user's.\n\n**Permission:** `orders.view_assigned`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/dashboard/my-work"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": {\n    \"open_orders\": 19,\n    \"orders_by_status\": {\n      \"draft\": 0,\n      \"pending\": 2,\n      \"confirmed\": 6,\n      \"processing\": 6,\n      \"ready\": 5,\n      \"completed\": 148,\n      \"cancelled\": 13\n    }\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Customers",
+      "item": [
+        {
+          "name": "List customers",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('orderCustomerId', json.data.find((c) => c.orders_count > 0).id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers?status=active&sort=created_at&direction=desc&page=1&per_page=15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Name, email or company.",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "description": "`active` | `inactive`."
+                },
+                {
+                  "key": "sort",
+                  "value": "created_at",
+                  "description": "`name` | `email` | `created_at`."
+                },
+                {
+                  "key": "direction",
+                  "value": "desc",
+                  "description": "`asc` | `desc`."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)."
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Items per page, 1–100 (default 15)."
+                }
+              ]
+            },
+            "description": "Paginated. `search` uses a FULLTEXT index on name, email and company (prefix match). In the collection, a customer that has orders is saved as `orderCustomerId` for the order requests.\n\n**Permission:** `customers.view`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/customers?status=active&sort=created_at&direction=desc&page=1&per_page=15"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": [\n    {\n      \"id\": 90,\n      \"name\": \"Edison Cormier PhD\",\n      \"email\": \"brennon.bosco@example.com\",\n      \"phone\": \"925.715.8218\",\n      \"company\": null,\n      \"address_line1\": \"742 Jarrell Vista\",\n      \"address_line2\": null,\n      \"city\": \"West Norris\",\n      \"state\": \"Missouri\",\n      \"postal_code\": \"28290\",\n      \"country\": \"Gibraltar\",\n      \"status\": {\n        \"value\": \"active\",\n        \"label\": \"Active\"\n      },\n      \"orders_count\": 10,\n      \"created_at\": \"2026-10-10T17:37:25+00:00\",\n      \"updated_at\": \"2026-10-10T17:37:25+00:00\"\n    },\n    {\n      \"id\": 89,\n      \"name\": \"Thalia Effertz\",\n      \"email\": \"jermey.schumm@example.org\",\n      \"phone\": \"+16897566586\",\n      \"company\": \"Cronin, Stehr and Davis\",\n      \"address_line1\": \"82937 Dare Shoal\",\n      \"address_line2\": null,\n      \"city\": \"North Jacey\",\n      \"state\": \"Wyoming\",\n      \"postal_code\": \"25439-5141\",\n      \"country\": \"Algeria\",\n      \"status\": {\n        \"value\": \"active\",\n        \"label\": \"Active\"\n      },\n      \"orders_count\": 6,\n      \"created_at\": \"2026-10-10T17:37:25+00:00\",\n      \"updated_at\": \"2026-10-10T17:37:25+00:00\"\n    }\n  ],\n  \"meta\": {\n    \"current_page\": 1,\n    \"per_page\": 15,\n    \"total\": 90,\n    \"last_page\": 6\n  }\n}"
+            },
+            {
+              "name": "422 Invalid sort",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/customers?sort=password"
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"The selected sort is invalid.\",\n  \"errors\": {\n    \"sort\": [\n      \"The selected sort is invalid.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('customerId', json.data.id);",
+                  "pm.collectionVariables.set('customerEmail', json.data.email);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Asha Verma\",\n  \"email\": \"asha+{{$timestamp}}@example.com\",\n  \"phone\": \"+91 98765 43210\",\n  \"company\": \"Verma Traders\",\n  \"address_line1\": \"12 MG Road\",\n  \"address_line2\": null,\n  \"city\": \"Pune\",\n  \"state\": \"Maharashtra\",\n  \"postal_code\": \"411001\",\n  \"country\": \"India\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers"
+              ]
+            },
+            "description": "New customers start active. `email` must be unique.\n\n**Permission:** `customers.create`"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/customers"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Asha Verma\",\n  \"email\": \"asha+1791713374350@example.com\",\n  \"phone\": \"+91 98765 43210\",\n  \"company\": \"Verma Traders\",\n  \"address_line1\": \"12 MG Road\",\n  \"address_line2\": null,\n  \"city\": \"Pune\",\n  \"state\": \"Maharashtra\",\n  \"postal_code\": \"411001\",\n  \"country\": \"India\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Customer created successfully\",\n  \"data\": {\n    \"id\": 103,\n    \"name\": \"Asha Verma\",\n    \"email\": \"asha+1791713374350@example.com\",\n    \"phone\": \"+91 98765 43210\",\n    \"company\": \"Verma Traders\",\n    \"address_line1\": \"12 MG Road\",\n    \"address_line2\": null,\n    \"city\": \"Pune\",\n    \"state\": \"Maharashtra\",\n    \"postal_code\": \"411001\",\n    \"country\": \"India\",\n    \"status\": {\n      \"value\": \"active\",\n      \"label\": \"Active\"\n    },\n    \"created_at\": \"2026-10-11T10:09:34+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:34+00:00\"\n  }\n}"
+            },
+            {
+              "name": "422 Validation failed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/customers"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"\",\n  \"email\": \"not-an-email\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"The name field is required. (and 4 more errors)\",\n  \"errors\": {\n    \"name\": [\n      \"The name field is required.\"\n    ],\n    \"email\": [\n      \"The email field must be a valid email address.\"\n    ],\n    \"address_line1\": [\n      \"The address line1 field is required.\"\n    ],\n    \"city\": [\n      \"The city field is required.\"\n    ],\n    \"country\": [\n      \"The country field is required.\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "403 Forbidden (staff)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/customers"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Asha Verma\",\n  \"email\": \"asha+1791713375130@example.com\",\n  \"phone\": \"+91 98765 43210\",\n  \"company\": \"Verma Traders\",\n  \"address_line1\": \"12 MG Road\",\n  \"address_line2\": null,\n  \"city\": \"Pune\",\n  \"state\": \"Maharashtra\",\n  \"postal_code\": \"411001\",\n  \"country\": \"India\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This action is unauthorized.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Show customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}"
+              ]
+            },
+            "description": "Includes an order summary (`stats`): totals per status and booked order value.\n\n**Permission:** `customers.view`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/customers/103"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": {\n    \"id\": 103,\n    \"name\": \"Asha Verma\",\n    \"email\": \"asha+1791713374350@example.com\",\n    \"phone\": \"+91 98765 43210\",\n    \"company\": \"Verma Traders\",\n    \"address_line1\": \"12 MG Road\",\n    \"address_line2\": null,\n    \"city\": \"Pune\",\n    \"state\": \"Maharashtra\",\n    \"postal_code\": \"411001\",\n    \"country\": \"India\",\n    \"status\": {\n      \"value\": \"active\",\n      \"label\": \"Active\"\n    },\n    \"orders_count\": 0,\n    \"stats\": {\n      \"total_orders\": 0,\n      \"pending_orders\": 0,\n      \"completed_orders\": 0,\n      \"cancelled_orders\": 0,\n      \"total_order_value\": 0,\n      \"total_order_value_formatted\": \"0.00\"\n    },\n    \"created_at\": \"2026-10-11T10:09:34+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:34+00:00\"\n  }\n}"
+            },
+            {
+              "name": "404 Not found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/customers/999999"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Resource not found.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Asha Verma\",\n  \"email\": \"{{customerEmail}}\",\n  \"phone\": \"+91 98765 00000\",\n  \"company\": \"Verma Traders Pvt Ltd\",\n  \"address_line1\": \"12 MG Road\",\n  \"city\": \"Mumbai\",\n  \"state\": \"Maharashtra\",\n  \"postal_code\": \"400001\",\n  \"country\": \"India\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}"
+              ]
+            },
+            "description": "Full update (same fields as create). Status has its own endpoint.\n\n**Permission:** `customers.update`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/customers/103"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Asha Verma\",\n  \"email\": \"asha+1791713374350@example.com\",\n  \"phone\": \"+91 98765 00000\",\n  \"company\": \"Verma Traders Pvt Ltd\",\n  \"address_line1\": \"12 MG Road\",\n  \"city\": \"Mumbai\",\n  \"state\": \"Maharashtra\",\n  \"postal_code\": \"400001\",\n  \"country\": \"India\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Customer updated successfully\",\n  \"data\": {\n    \"id\": 103,\n    \"name\": \"Asha Verma\",\n    \"email\": \"asha+1791713374350@example.com\",\n    \"phone\": \"+91 98765 00000\",\n    \"company\": \"Verma Traders Pvt Ltd\",\n    \"address_line1\": \"12 MG Road\",\n    \"address_line2\": null,\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"postal_code\": \"400001\",\n    \"country\": \"India\",\n    \"status\": {\n      \"value\": \"active\",\n      \"label\": \"Active\"\n    },\n    \"orders_count\": 0,\n    \"created_at\": \"2026-10-11T10:09:34+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:36+00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Change customer status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}",
+                "status"
+              ]
+            },
+            "description": "Inactive customers cannot get new orders.\n\n**Permission:** `customers.update`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/customers/103/status"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"active\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Customer status updated successfully\",\n  \"data\": {\n    \"id\": 103,\n    \"name\": \"Asha Verma\",\n    \"email\": \"asha+1791713374350@example.com\",\n    \"phone\": \"+91 98765 00000\",\n    \"company\": \"Verma Traders Pvt Ltd\",\n    \"address_line1\": \"12 MG Road\",\n    \"address_line2\": null,\n    \"city\": \"Mumbai\",\n    \"state\": \"Maharashtra\",\n    \"postal_code\": \"400001\",\n    \"country\": \"India\",\n    \"status\": {\n      \"value\": \"active\",\n      \"label\": \"Active\"\n    },\n    \"orders_count\": 0,\n    \"created_at\": \"2026-10-11T10:09:34+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:36+00:00\"\n  }\n}"
+            },
+            {
+              "name": "422 Invalid status",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/customers/103/status"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"archived\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"The selected status is invalid.\",\n  \"errors\": {\n    \"status\": [\n      \"The selected status is invalid.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete customer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.expect(pm.response.code).to.be.oneOf([204]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/customers/{{customerId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "customers",
+                "{{customerId}}"
+              ]
+            },
+            "description": "Soft delete, only for customers without orders. A customer with orders keeps its history: deactivate it instead.\n\n**Permission:** `customers.delete`"
+          },
+          "response": [
+            {
+              "name": "204 No Content",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/customers/103"
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": ""
+            },
+            {
+              "name": "422 Customer has orders",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/customers/90"
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This customer has orders and cannot be deleted. Deactivate the customer instead.\"\n}"
+            },
+            {
+              "name": "403 Forbidden (manager)",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/customers/90"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This action is unauthorized.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "List products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/products?status=active&sort=name&direction=asc&page=1&per_page=15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Name, SKU or description.",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "active",
+                  "description": "`active` | `inactive` | `discontinued`."
+                },
+                {
+                  "key": "sort",
+                  "value": "name",
+                  "description": "`name` | `sku` | `price` | `stock_quantity` | `created_at`."
+                },
+                {
+                  "key": "direction",
+                  "value": "asc",
+                  "description": "`asc` | `desc`."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)."
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Items per page, 1–100 (default 15)."
+                }
+              ]
+            },
+            "description": "Paginated, with `is_low_stock`. Prices are integer cents.\n\n**Permission:** `products.view`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/products?status=active&sort=name&direction=asc&page=1&per_page=15"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": [\n    {\n      \"id\": 19,\n      \"sku\": \"SKU-ES37PW\",\n      \"name\": \"Classic Carbon Mouse\",\n      \"description\": null,\n      \"price\": 32500,\n      \"price_formatted\": \"325.00\",\n      \"tax_rate_bps\": 1000,\n      \"stock_quantity\": 57,\n      \"low_stock_threshold\": 10,\n      \"is_low_stock\": false,\n      \"status\": {\n        \"value\": \"active\",\n        \"label\": \"Active\"\n      },\n      \"created_at\": \"2026-10-10T17:37:26+00:00\",\n      \"updated_at\": \"2026-10-10T17:37:26+00:00\"\n    },\n    {\n      \"id\": 23,\n      \"sku\": \"SKU-PJ02VE\",\n      \"name\": \"Classic Cotton Notebook\",\n      \"description\": \"Quis ipsum sunt officiis autem optio molestiae consectetur non.\",\n      \"price\": 10000,\n      \"price_formatted\": \"100.00\",\n      \"tax_rate_bps\": 1000,\n      \"stock_quantity\": 184,\n      \"low_stock_threshold\": 10,\n      \"is_low_stock\": false,\n      \"status\": {\n        \"value\": \"active\",\n        \"label\": \"Active\"\n      },\n      \"created_at\": \"2026-10-10T17:37:26+00:00\",\n      \"updated_at\": \"2026-10-10T17:37:26+00:00\"\n    }\n  ],\n  \"meta\": {\n    \"current_page\": 1,\n    \"per_page\": 15,\n    \"total\": 52,\n    \"last_page\": 4\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('productId', json.data.id);",
+                  "pm.collectionVariables.set('productSku', json.data.sku);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"PM-{{$timestamp}}\",\n  \"name\": \"Ergonomic Desk Lamp\",\n  \"description\": \"LED lamp with dimmer.\",\n  \"price\": 129900,\n  \"tax_rate_bps\": 1800,\n  \"low_stock_threshold\": 108,\n  \"initial_stock\": 100\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/products",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products"
+              ]
+            },
+            "description": "`price` in cents, `tax_rate_bps` in basis points (1800 = 18%). `initial_stock` writes an \"Opening stock\" ledger row. SKU: uppercase letters, digits and dashes, unique.\n\n**Permission:** `products.manage`"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/products"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\": \"PM-1791713378465\",\n  \"name\": \"Ergonomic Desk Lamp\",\n  \"description\": \"LED lamp with dimmer.\",\n  \"price\": 129900,\n  \"tax_rate_bps\": 1800,\n  \"low_stock_threshold\": 108,\n  \"initial_stock\": 100\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Product created successfully\",\n  \"data\": {\n    \"id\": 53,\n    \"sku\": \"PM-1791713378465\",\n    \"name\": \"Ergonomic Desk Lamp\",\n    \"description\": \"LED lamp with dimmer.\",\n    \"price\": 129900,\n    \"price_formatted\": \"1,299.00\",\n    \"tax_rate_bps\": 1800,\n    \"stock_quantity\": 100,\n    \"low_stock_threshold\": 108,\n    \"is_low_stock\": true,\n    \"status\": {\n      \"value\": \"active\",\n      \"label\": \"Active\"\n    },\n    \"created_at\": \"2026-10-11T10:09:38+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:38+00:00\"\n  }\n}"
+            },
+            {
+              "name": "422 Duplicate SKU",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/products"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\": \"PM-1791713378465\",\n  \"name\": \"Copy\",\n  \"price\": 100\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"A product with this SKU already exists.\",\n  \"errors\": {\n    \"sku\": [\n      \"A product with this SKU already exists.\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "403 Forbidden (manager)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/products"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\": \"PM-1791713379172\",\n  \"name\": \"Ergonomic Desk Lamp\",\n  \"description\": \"LED lamp with dimmer.\",\n  \"price\": 129900,\n  \"tax_rate_bps\": 1800,\n  \"low_stock_threshold\": 108,\n  \"initial_stock\": 100\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This action is unauthorized.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Show product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "description": "One product.\n\n**Permission:** `products.view`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/products/53"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": {\n    \"id\": 53,\n    \"sku\": \"PM-1791713378465\",\n    \"name\": \"Ergonomic Desk Lamp\",\n    \"description\": \"LED lamp with dimmer.\",\n    \"price\": 129900,\n    \"price_formatted\": \"1,299.00\",\n    \"tax_rate_bps\": 1800,\n    \"stock_quantity\": 100,\n    \"low_stock_threshold\": 108,\n    \"is_low_stock\": true,\n    \"status\": {\n      \"value\": \"active\",\n      \"label\": \"Active\"\n    },\n    \"created_at\": \"2026-10-11T10:09:38+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:38+00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update product",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"sku\": \"{{productSku}}\",\n  \"name\": \"Ergonomic Desk Lamp Pro\",\n  \"description\": \"LED lamp with dimmer and USB port.\",\n  \"price\": 139900,\n  \"tax_rate_bps\": 1800,\n  \"low_stock_threshold\": 108\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/products/{{productId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products",
+                "{{productId}}"
+              ]
+            },
+            "description": "Same fields as create without `initial_stock`: stock only changes through stock adjustments and orders.\n\n**Permission:** `products.manage`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/products/53"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"sku\": \"PM-1791713378465\",\n  \"name\": \"Ergonomic Desk Lamp Pro\",\n  \"description\": \"LED lamp with dimmer and USB port.\",\n  \"price\": 139900,\n  \"tax_rate_bps\": 1800,\n  \"low_stock_threshold\": 108\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Product updated successfully\",\n  \"data\": {\n    \"id\": 53,\n    \"sku\": \"PM-1791713378465\",\n    \"name\": \"Ergonomic Desk Lamp Pro\",\n    \"description\": \"LED lamp with dimmer and USB port.\",\n    \"price\": 139900,\n    \"price_formatted\": \"1,399.00\",\n    \"tax_rate_bps\": 1800,\n    \"stock_quantity\": 100,\n    \"low_stock_threshold\": 108,\n    \"is_low_stock\": true,\n    \"status\": {\n      \"value\": \"active\",\n      \"label\": \"Active\"\n    },\n    \"created_at\": \"2026-10-11T10:09:38+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:40+00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Change product status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"active\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/products/{{productId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products",
+                "{{productId}}",
+                "status"
+              ]
+            },
+            "description": "`active` | `inactive` | `discontinued`. There is no DELETE: products leave the catalogue by being discontinued.\n\n**Permission:** `products.manage`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/products/53/status"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"active\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Product status updated successfully\",\n  \"data\": {\n    \"id\": 53,\n    \"sku\": \"PM-1791713378465\",\n    \"name\": \"Ergonomic Desk Lamp Pro\",\n    \"description\": \"LED lamp with dimmer and USB port.\",\n    \"price\": 139900,\n    \"price_formatted\": \"1,399.00\",\n    \"tax_rate_bps\": 1800,\n    \"stock_quantity\": 100,\n    \"low_stock_threshold\": 108,\n    \"is_low_stock\": true,\n    \"status\": {\n      \"value\": \"active\",\n      \"label\": \"Active\"\n    },\n    \"created_at\": \"2026-10-11T10:09:38+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:40+00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Adjust stock",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 or 201', () => pm.expect(pm.response.code).to.be.oneOf([200,201]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 10,\n  \"reason\": \"Restock from supplier\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/products/{{productId}}/stock-adjustments",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "products",
+                "{{productId}}",
+                "stock-adjustments"
+              ]
+            },
+            "description": "Signed quantity (+ adds, − removes). Atomic: stock can never go below zero. Writes a stock ledger row.\n\n**Permission:** `products.manage`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/products/53/stock-adjustments"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"quantity\": 10,\n  \"reason\": \"Restock from supplier\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Stock adjusted successfully\",\n  \"data\": {\n    \"id\": 53,\n    \"sku\": \"PM-1791713378465\",\n    \"name\": \"Ergonomic Desk Lamp Pro\",\n    \"description\": \"LED lamp with dimmer and USB port.\",\n    \"price\": 139900,\n    \"price_formatted\": \"1,399.00\",\n    \"tax_rate_bps\": 1800,\n    \"stock_quantity\": 110,\n    \"low_stock_threshold\": 108,\n    \"is_low_stock\": false,\n    \"status\": {\n      \"value\": \"active\",\n      \"label\": \"Active\"\n    },\n    \"created_at\": \"2026-10-11T10:09:38+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:40+00:00\"\n  }\n}"
+            },
+            {
+              "name": "422 Validation failed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/products/53/stock-adjustments"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"quantity\": 0,\n  \"reason\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"The adjustment cannot be zero. (and 1 more error)\",\n  \"errors\": {\n    \"quantity\": [\n      \"The adjustment cannot be zero.\"\n    ],\n    \"reason\": [\n      \"Please give a reason for the stock adjustment.\"\n    ]\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "description": "Totals are always calculated on the server from current product prices; any totals sent by the client are ignored. Staff only ever see orders assigned to them (lists, filters and direct ids).",
+      "item": [
+        {
+          "name": "List orders",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders?status[]=pending&date_from=2026-01-01&sort=order_date&direction=desc&page=1&per_page=15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Order number, customer or product.",
+                  "disabled": true
+                },
+                {
+                  "key": "status[]",
+                  "value": "pending",
+                  "description": "Repeatable: draft, pending, confirmed, processing, ready, completed, cancelled."
+                },
+                {
+                  "key": "priority[]",
+                  "value": "3",
+                  "description": "Repeatable: 1 Low, 2 Normal, 3 High, 4 Urgent.",
+                  "disabled": true
+                },
+                {
+                  "key": "customer_id",
+                  "value": "",
+                  "description": "Customer id.",
+                  "disabled": true
+                },
+                {
+                  "key": "assigned_to",
+                  "value": "",
+                  "description": "Assignee user id.",
+                  "disabled": true
+                },
+                {
+                  "key": "date_from",
+                  "value": "2026-01-01",
+                  "description": "Order date from `Y-m-d`."
+                },
+                {
+                  "key": "date_to",
+                  "value": "",
+                  "description": "Order date to `Y-m-d`.",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "order_date",
+                  "description": "`order_date` | `grand_total` | `status` | `priority` | `customer`."
+                },
+                {
+                  "key": "direction",
+                  "value": "desc",
+                  "description": "`asc` | `desc`."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)."
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Items per page, 1–100 (default 15)."
+                }
+              ]
+            },
+            "description": "Paginated list with filters. `search` matches an order number (ORD-10001), customer name/email or product name/SKU.\n\n**Permission:** `orders.view_any or orders.view_assigned (staff: own orders only)`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders?status[]=pending&date_from=2026-01-01&sort=order_date&direction=desc&page=1&per_page=15"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": [\n    {\n      \"id\": 609,\n      \"order_number\": \"ORD-10609\",\n      \"status\": {\n        \"value\": \"pending\",\n        \"label\": \"Pending\"\n      },\n      \"priority\": {\n        \"value\": 2,\n        \"label\": \"Normal\"\n      },\n      \"order_date\": \"2026-10-11\",\n      \"customer\": {\n        \"id\": 90,\n        \"name\": \"Edison Cormier PhD\",\n        \"email\": \"brennon.bosco@example.com\"\n      },\n      \"assignee\": null,\n      \"grand_total\": 825410000,\n      \"grand_total_formatted\": \"8,254,100.00\",\n      \"created_at\": \"2026-10-11T10:08:16+00:00\"\n    },\n    {\n      \"id\": 607,\n      \"order_number\": \"ORD-10607\",\n      \"status\": {\n        \"value\": \"pending\",\n        \"label\": \"Pending\"\n      },\n      \"priority\": {\n        \"value\": 2,\n        \"label\": \"Normal\"\n      },\n      \"order_date\": \"2026-10-11\",\n      \"customer\": {\n        \"id\": 90,\n        \"name\": \"Edison Cormier PhD\",\n        \"email\": \"brennon.bosco@example.com\"\n      },\n      \"assignee\": null,\n      \"grand_total\": 825410000,\n      \"grand_total_formatted\": \"8,254,100.00\",\n      \"created_at\": \"2026-10-11T10:06:11+00:00\"\n    }\n  ],\n  \"meta\": {\n    \"current_page\": 1,\n    \"per_page\": 15,\n    \"total\": 45,\n    \"last_page\": 3\n  }\n}"
+            },
+            {
+              "name": "422 Invalid filter",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders?status[]=shipped"
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"The selected status.0 is invalid.\",\n  \"errors\": {\n    \"status.0\": [\n      \"The selected status.0 is invalid.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('orderId', json.data.id);",
+                  "pm.collectionVariables.set('orderVersion', json.data.version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": {{orderCustomerId}},\n  \"status\": \"pending\",\n  \"priority\": 2,\n  \"discount_type\": \"fixed\",\n  \"discount_value\": 500,\n  \"note\": \"Customer prefers morning delivery.\",\n  \"items\": [\n    {\n      \"product_id\": {{productId}},\n      \"quantity\": 3\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders"
+              ]
+            },
+            "description": "Creates a `draft` or `pending` order (no stock change yet). `discount_value` is cents for `fixed` and basis points for `percent` (1000 = 10%). Optional `assigned_to` (active manager/staff) and a first `note`.\n\n**Permission:** `orders.create`"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customer_id\": 90,\n  \"status\": \"pending\",\n  \"priority\": 2,\n  \"discount_type\": \"fixed\",\n  \"discount_value\": 500,\n  \"note\": \"Customer prefers morning delivery.\",\n  \"items\": [\n    {\n      \"product_id\": 53,\n      \"quantity\": 3\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Order created successfully\",\n  \"data\": {\n    \"id\": 610,\n    \"order_number\": \"ORD-10610\",\n    \"status\": {\n      \"value\": \"pending\",\n      \"label\": \"Pending\"\n    },\n    \"priority\": {\n      \"value\": 2,\n      \"label\": \"Normal\"\n    },\n    \"order_date\": \"2026-10-11\",\n    \"customer\": {\n      \"id\": 90,\n      \"name\": \"Edison Cormier PhD\",\n      \"email\": \"brennon.bosco@example.com\",\n      \"phone\": \"925.715.8218\",\n      \"company\": null,\n      \"address\": {\n        \"line1\": \"742 Jarrell Vista\",\n        \"line2\": null,\n        \"city\": \"West Norris\",\n        \"state\": \"Missouri\",\n        \"postal_code\": \"28290\",\n        \"country\": \"Gibraltar\"\n      }\n    },\n    \"assignee\": null,\n    \"creator\": {\n      \"id\": 1,\n      \"name\": \"Admin User\"\n    },\n    \"discount_type\": \"fixed\",\n    \"discount_value\": 500,\n    \"subtotal\": 419700,\n    \"discount_total\": 500,\n    \"tax_total\": 75456,\n    \"grand_total\": 494656,\n    \"formatted\": {\n      \"subtotal\": \"4,197.00\",\n      \"discount_total\": \"5.00\",\n      \"tax_total\": \"754.56\",\n      \"grand_total\": \"4,946.56\"\n    },\n    \"items\": [\n      {\n        \"id\": 1818,\n        \"product_id\": 53,\n        \"product_name\": \"Ergonomic Desk Lamp Pro\",\n        \"sku\": \"PM-1791713378465\",\n        \"quantity\": 3,\n        \"unit_price\": 139900,\n        \"tax_rate_bps\": 1800,\n        \"line_subtotal\": 419700,\n        \"discount_amount\": 500,\n        \"tax_amount\": 75456,\n        \"line_total\": 494656,\n        \"formatted\": {\n          \"unit_price\": \"1,399.00\",\n          \"discount_amount\": \"5.00\",\n          \"tax_amount\": \"754.56\",\n          \"line_total\": \"4,946.56\"\n        }\n      }\n    ],\n    \"version\": 1,\n    \"stock_deducted_at\": null,\n    \"confirmed_at\": null,\n    \"completed_at\": null,\n    \"cancelled_at\": null,\n    \"cancellation_reason\": null,\n    \"created_at\": \"2026-10-11T10:09:42+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:42+00:00\"\n  }\n}"
+            },
+            {
+              "name": "422 Validation failed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customer_id\": 999999,\n  \"items\": []\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Customer must exist and be active. (and 1 more error)\",\n  \"errors\": {\n    \"customer_id\": [\n      \"Customer must exist and be active.\"\n    ],\n    \"items\": [\n      \"Order must contain at least one product.\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "403 Forbidden (staff)",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customer_id\": 90,\n  \"status\": \"pending\",\n  \"priority\": 2,\n  \"discount_type\": \"fixed\",\n  \"discount_value\": 500,\n  \"note\": \"Customer prefers morning delivery.\",\n  \"items\": [\n    {\n      \"product_id\": 53,\n      \"quantity\": 3\n    }\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This action is unauthorized.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Show order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('orderVersion', json.data.version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "description": "Order with customer, items (price snapshots, per-line discount and tax), assignee, creator and `version` (needed for updates).\n\n**Permission:** `orders.view_any, or orders.view_assigned for own orders`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": {\n    \"id\": 610,\n    \"order_number\": \"ORD-10610\",\n    \"status\": {\n      \"value\": \"pending\",\n      \"label\": \"Pending\"\n    },\n    \"priority\": {\n      \"value\": 2,\n      \"label\": \"Normal\"\n    },\n    \"order_date\": \"2026-10-11\",\n    \"customer\": {\n      \"id\": 90,\n      \"name\": \"Edison Cormier PhD\",\n      \"email\": \"brennon.bosco@example.com\",\n      \"phone\": \"925.715.8218\",\n      \"company\": null,\n      \"address\": {\n        \"line1\": \"742 Jarrell Vista\",\n        \"line2\": null,\n        \"city\": \"West Norris\",\n        \"state\": \"Missouri\",\n        \"postal_code\": \"28290\",\n        \"country\": \"Gibraltar\"\n      }\n    },\n    \"assignee\": null,\n    \"creator\": {\n      \"id\": 1,\n      \"name\": \"Admin User\"\n    },\n    \"discount_type\": \"fixed\",\n    \"discount_value\": 500,\n    \"subtotal\": 419700,\n    \"discount_total\": 500,\n    \"tax_total\": 75456,\n    \"grand_total\": 494656,\n    \"formatted\": {\n      \"subtotal\": \"4,197.00\",\n      \"discount_total\": \"5.00\",\n      \"tax_total\": \"754.56\",\n      \"grand_total\": \"4,946.56\"\n    },\n    \"items\": [\n      {\n        \"id\": 1818,\n        \"product_id\": 53,\n        \"product_name\": \"Ergonomic Desk Lamp Pro\",\n        \"sku\": \"PM-1791713378465\",\n        \"quantity\": 3,\n        \"unit_price\": 139900,\n        \"tax_rate_bps\": 1800,\n        \"line_subtotal\": 419700,\n        \"discount_amount\": 500,\n        \"tax_amount\": 75456,\n        \"line_total\": 494656,\n        \"formatted\": {\n          \"unit_price\": \"1,399.00\",\n          \"discount_amount\": \"5.00\",\n          \"tax_amount\": \"754.56\",\n          \"line_total\": \"4,946.56\"\n        }\n      }\n    ],\n    \"version\": 1,\n    \"stock_deducted_at\": null,\n    \"confirmed_at\": null,\n    \"completed_at\": null,\n    \"cancelled_at\": null,\n    \"cancellation_reason\": null,\n    \"created_at\": \"2026-10-11T10:09:42+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:42+00:00\"\n  }\n}"
+            },
+            {
+              "name": "404 Not found",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/999999"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Resource not found.\"\n}"
+            },
+            {
+              "name": "403 Not your order (staff)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This action is unauthorized.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('orderVersion', json.data.version);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"customer_id\": {{orderCustomerId}},\n  \"priority\": 3,\n  \"discount_type\": \"percent\",\n  \"discount_value\": 1000,\n  \"items\": [\n    {\n      \"product_id\": {{productId}},\n      \"quantity\": 2\n    }\n  ],\n  \"version\": {{orderVersion}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "description": "Optimistic locking: send the `version` you loaded. If someone changed the order since, the API returns **409** and nothing is saved. Draft/pending orders accept every field; later states only `priority`. Status and assignee have their own endpoints.\n\n**Permission:** `orders.update`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customer_id\": 90,\n  \"priority\": 3,\n  \"discount_type\": \"percent\",\n  \"discount_value\": 1000,\n  \"items\": [\n    {\n      \"product_id\": 53,\n      \"quantity\": 2\n    }\n  ],\n  \"version\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Order updated successfully\",\n  \"data\": {\n    \"id\": 610,\n    \"order_number\": \"ORD-10610\",\n    \"status\": {\n      \"value\": \"pending\",\n      \"label\": \"Pending\"\n    },\n    \"priority\": {\n      \"value\": 3,\n      \"label\": \"High\"\n    },\n    \"order_date\": \"2026-10-11\",\n    \"customer\": {\n      \"id\": 90,\n      \"name\": \"Edison Cormier PhD\",\n      \"email\": \"brennon.bosco@example.com\",\n      \"phone\": \"925.715.8218\",\n      \"company\": null,\n      \"address\": {\n        \"line1\": \"742 Jarrell Vista\",\n        \"line2\": null,\n        \"city\": \"West Norris\",\n        \"state\": \"Missouri\",\n        \"postal_code\": \"28290\",\n        \"country\": \"Gibraltar\"\n      }\n    },\n    \"assignee\": null,\n    \"creator\": {\n      \"id\": 1,\n      \"name\": \"Admin User\"\n    },\n    \"discount_type\": \"percent\",\n    \"discount_value\": 1000,\n    \"subtotal\": 279800,\n    \"discount_total\": 27980,\n    \"tax_total\": 45328,\n    \"grand_total\": 297148,\n    \"formatted\": {\n      \"subtotal\": \"2,798.00\",\n      \"discount_total\": \"279.80\",\n      \"tax_total\": \"453.28\",\n      \"grand_total\": \"2,971.48\"\n    },\n    \"items\": [\n      {\n        \"id\": 1819,\n        \"product_id\": 53,\n        \"product_name\": \"Ergonomic Desk Lamp Pro\",\n        \"sku\": \"PM-1791713378465\",\n        \"quantity\": 2,\n        \"unit_price\": 139900,\n        \"tax_rate_bps\": 1800,\n        \"line_subtotal\": 279800,\n        \"discount_amount\": 27980,\n        \"tax_amount\": 45328,\n        \"line_total\": 297148,\n        \"formatted\": {\n          \"unit_price\": \"1,399.00\",\n          \"discount_amount\": \"279.80\",\n          \"tax_amount\": \"453.28\",\n          \"line_total\": \"2,971.48\"\n        }\n      }\n    ],\n    \"version\": 2,\n    \"stock_deducted_at\": null,\n    \"confirmed_at\": null,\n    \"completed_at\": null,\n    \"cancelled_at\": null,\n    \"cancellation_reason\": null,\n    \"created_at\": \"2026-10-11T10:09:42+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:44+00:00\"\n  }\n}"
+            },
+            {
+              "name": "409 Stale version",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"customer_id\": 90,\n  \"priority\": 4,\n  \"items\": [\n    {\n      \"product_id\": 53,\n      \"quantity\": 1\n    }\n  ],\n  \"version\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Conflict",
+              "code": 409,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This order was changed by someone else. Reload and try again.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Order workflow",
+      "description": "Status machine: draft ⇄ pending → confirmed → processing → ready → completed; any non-final state → cancelled. Confirming deducts stock (atomically, all lines or none); cancelling a confirmed order restocks.",
+      "item": [
+        {
+          "name": "Allowed transitions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}/allowed-transitions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}",
+                "allowed-transitions"
+              ]
+            },
+            "description": "Statuses the **current user** may move this order to, and whether remarks are required.\n\n**Permission:** `view the order`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610/allowed-transitions"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": {\n    \"current\": {\n      \"value\": \"pending\",\n      \"label\": \"Pending\"\n    },\n    \"transitions\": [\n      {\n        \"value\": \"draft\",\n        \"label\": \"Draft\",\n        \"requires_remarks\": false\n      },\n      {\n        \"value\": \"confirmed\",\n        \"label\": \"Confirmed\",\n        \"requires_remarks\": false\n      },\n      {\n        \"value\": \"cancelled\",\n        \"label\": \"Cancelled\",\n        \"requires_remarks\": true\n      }\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Change status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\",\n  \"remarks\": \"Confirmed with the customer by phone.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}",
+                "status"
+              ]
+            },
+            "description": "Moves the order along the workflow and writes a status-history row. `remarks` is required when cancelling.\n\n**Permission:** `orders.change_status (+ orders.update / orders.cancel for some targets)`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610/status"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"confirmed\",\n  \"remarks\": \"Confirmed with the customer by phone.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Order status changed to Confirmed\",\n  \"data\": {\n    \"id\": 610,\n    \"order_number\": \"ORD-10610\",\n    \"status\": {\n      \"value\": \"confirmed\",\n      \"label\": \"Confirmed\"\n    },\n    \"priority\": {\n      \"value\": 3,\n      \"label\": \"High\"\n    },\n    \"order_date\": \"2026-10-11\",\n    \"customer\": {\n      \"id\": 90,\n      \"name\": \"Edison Cormier PhD\",\n      \"email\": \"brennon.bosco@example.com\",\n      \"phone\": \"925.715.8218\",\n      \"company\": null,\n      \"address\": {\n        \"line1\": \"742 Jarrell Vista\",\n        \"line2\": null,\n        \"city\": \"West Norris\",\n        \"state\": \"Missouri\",\n        \"postal_code\": \"28290\",\n        \"country\": \"Gibraltar\"\n      }\n    },\n    \"assignee\": null,\n    \"creator\": {\n      \"id\": 1,\n      \"name\": \"Admin User\"\n    },\n    \"discount_type\": \"percent\",\n    \"discount_value\": 1000,\n    \"subtotal\": 279800,\n    \"discount_total\": 27980,\n    \"tax_total\": 45328,\n    \"grand_total\": 297148,\n    \"formatted\": {\n      \"subtotal\": \"2,798.00\",\n      \"discount_total\": \"279.80\",\n      \"tax_total\": \"453.28\",\n      \"grand_total\": \"2,971.48\"\n    },\n    \"items\": [\n      {\n        \"id\": 1819,\n        \"product_id\": 53,\n        \"product_name\": \"Ergonomic Desk Lamp Pro\",\n        \"sku\": \"PM-1791713378465\",\n        \"quantity\": 2,\n        \"unit_price\": 139900,\n        \"tax_rate_bps\": 1800,\n        \"line_subtotal\": 279800,\n        \"discount_amount\": 27980,\n        \"tax_amount\": 45328,\n        \"line_total\": 297148,\n        \"formatted\": {\n          \"unit_price\": \"1,399.00\",\n          \"discount_amount\": \"279.80\",\n          \"tax_amount\": \"453.28\",\n          \"line_total\": \"2,971.48\"\n        }\n      }\n    ],\n    \"version\": 3,\n    \"stock_deducted_at\": \"2026-10-11T10:09:45+00:00\",\n    \"confirmed_at\": \"2026-10-11T10:09:45+00:00\",\n    \"completed_at\": null,\n    \"cancelled_at\": null,\n    \"cancellation_reason\": null,\n    \"created_at\": \"2026-10-11T10:09:42+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:45+00:00\"\n  }\n}"
+            },
+            {
+              "name": "422 Invalid transition",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610/status"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"draft\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Invalid status transition is not allowed.\",\n  \"errors\": {\n    \"status\": [\n      \"Cannot change status from Confirmed to Draft.\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "422 Insufficient stock",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/611/status"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"confirmed\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Insufficient stock for Ergonomic Desk Lamp Pro: 108 available, 5000 requested.\",\n  \"errors\": {\n    \"items\": [\n      \"Insufficient stock for Ergonomic Desk Lamp Pro: 108 available, 5000 requested.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Status history",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}/status-history",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}",
+                "status-history"
+              ]
+            },
+            "description": "Every status change, oldest first: from, to, user, time, remarks.\n\n**Permission:** `view the order`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610/status-history"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": [\n    {\n      \"id\": 2748,\n      \"from\": null,\n      \"to\": {\n        \"value\": \"pending\",\n        \"label\": \"Pending\"\n      },\n      \"changed_by\": {\n        \"id\": 1,\n        \"name\": \"Admin User\"\n      },\n      \"remarks\": null,\n      \"created_at\": \"2026-10-11T10:09:42+00:00\"\n    },\n    {\n      \"id\": 2749,\n      \"from\": {\n        \"value\": \"pending\",\n        \"label\": \"Pending\"\n      },\n      \"to\": {\n        \"value\": \"confirmed\",\n        \"label\": \"Confirmed\"\n      },\n      \"changed_by\": {\n        \"id\": 1,\n        \"name\": \"Admin User\"\n      },\n      \"remarks\": \"Confirmed with the customer by phone.\",\n      \"created_at\": \"2026-10-11T10:09:45+00:00\"\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Assign order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"assigned_to\": {{staffId}}\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}/assign",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}",
+                "assign"
+              ]
+            },
+            "description": "`assigned_to` must be an active manager or staff member; `null` unassigns. The new assignee gets a (queued) notification.\n\n**Permission:** `orders.assign`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610/assign"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"assigned_to\": 4\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Order assigned to Staff One\",\n  \"data\": {\n    \"id\": 610,\n    \"order_number\": \"ORD-10610\",\n    \"status\": {\n      \"value\": \"confirmed\",\n      \"label\": \"Confirmed\"\n    },\n    \"priority\": {\n      \"value\": 3,\n      \"label\": \"High\"\n    },\n    \"order_date\": \"2026-10-11\",\n    \"customer\": {\n      \"id\": 90,\n      \"name\": \"Edison Cormier PhD\",\n      \"email\": \"brennon.bosco@example.com\",\n      \"phone\": \"925.715.8218\",\n      \"company\": null,\n      \"address\": {\n        \"line1\": \"742 Jarrell Vista\",\n        \"line2\": null,\n        \"city\": \"West Norris\",\n        \"state\": \"Missouri\",\n        \"postal_code\": \"28290\",\n        \"country\": \"Gibraltar\"\n      }\n    },\n    \"assignee\": {\n      \"id\": 4,\n      \"name\": \"Staff One\"\n    },\n    \"creator\": {\n      \"id\": 1,\n      \"name\": \"Admin User\"\n    },\n    \"discount_type\": \"percent\",\n    \"discount_value\": 1000,\n    \"subtotal\": 279800,\n    \"discount_total\": 27980,\n    \"tax_total\": 45328,\n    \"grand_total\": 297148,\n    \"formatted\": {\n      \"subtotal\": \"2,798.00\",\n      \"discount_total\": \"279.80\",\n      \"tax_total\": \"453.28\",\n      \"grand_total\": \"2,971.48\"\n    },\n    \"items\": [\n      {\n        \"id\": 1819,\n        \"product_id\": 53,\n        \"product_name\": \"Ergonomic Desk Lamp Pro\",\n        \"sku\": \"PM-1791713378465\",\n        \"quantity\": 2,\n        \"unit_price\": 139900,\n        \"tax_rate_bps\": 1800,\n        \"line_subtotal\": 279800,\n        \"discount_amount\": 27980,\n        \"tax_amount\": 45328,\n        \"line_total\": 297148,\n        \"formatted\": {\n          \"unit_price\": \"1,399.00\",\n          \"discount_amount\": \"279.80\",\n          \"tax_amount\": \"453.28\",\n          \"line_total\": \"2,971.48\"\n        }\n      }\n    ],\n    \"version\": 4,\n    \"stock_deducted_at\": \"2026-10-11T10:09:45+00:00\",\n    \"confirmed_at\": \"2026-10-11T10:09:45+00:00\",\n    \"completed_at\": null,\n    \"cancelled_at\": null,\n    \"cancellation_reason\": null,\n    \"created_at\": \"2026-10-11T10:09:42+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:47+00:00\"\n  }\n}"
+            },
+            {
+              "name": "422 Not assignable",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610/assign"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"assigned_to\": 1\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"The assignee must be an active manager or staff member.\",\n  \"errors\": {\n    \"assigned_to\": [\n      \"The assignee must be an active manager or staff member.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Add note",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.expect(pm.response.code).to.be.oneOf([201]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"body\": \"Customer asked for delivery before Friday.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}/notes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}",
+                "notes"
+              ]
+            },
+            "description": "Adds an internal note.\n\n**Permission:** `notes.create (and can view the order)`"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610/notes"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"body\": \"Customer asked for delivery before Friday.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Note added successfully\",\n  \"data\": {\n    \"id\": 855,\n    \"body\": \"Customer asked for delivery before Friday.\",\n    \"user\": {\n      \"id\": 1,\n      \"name\": \"Admin User\"\n    },\n    \"created_at\": \"2026-10-11T10:09:48+00:00\"\n  }\n}"
+            },
+            {
+              "name": "422 Empty note",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610/notes"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"body\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"The note cannot be empty.\",\n  \"errors\": {\n    \"body\": [\n      \"The note cannot be empty.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "List notes",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}/notes?page=1&per_page=15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}",
+                "notes"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)."
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Items per page, 1–100 (default 15)."
+                }
+              ]
+            },
+            "description": "Newest first, paginated.\n\n**Permission:** `view the order`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610/notes?page=1&per_page=15"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": [\n    {\n      \"id\": 855,\n      \"body\": \"Customer asked for delivery before Friday.\",\n      \"user\": {\n        \"id\": 1,\n        \"name\": \"Admin User\"\n      },\n      \"created_at\": \"2026-10-11T10:09:48+00:00\"\n    },\n    {\n      \"id\": 854,\n      \"body\": \"Customer prefers morning delivery.\",\n      \"user\": {\n        \"id\": 1,\n        \"name\": \"Admin User\"\n      },\n      \"created_at\": \"2026-10-11T10:09:42+00:00\"\n    }\n  ],\n  \"meta\": {\n    \"current_page\": 1,\n    \"per_page\": 15,\n    \"total\": 2,\n    \"last_page\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Activity feed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}/activities?page=1&per_page=15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}",
+                "activities"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)."
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Items per page, 1–100 (default 15)."
+                }
+              ]
+            },
+            "description": "Human-readable activity (created, updated, status changed, stock deducted, assigned, note added…), newest first.\n\n**Permission:** `view the order`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610/activities?page=1&per_page=15"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": [\n    {\n      \"id\": 4173,\n      \"type\": {\n        \"value\": \"note_added\",\n        \"label\": \"Note added\"\n      },\n      \"description\": \"Note added\",\n      \"properties\": {\n        \"note_id\": 855\n      },\n      \"user\": {\n        \"id\": 1,\n        \"name\": \"Admin User\"\n      },\n      \"created_at\": \"2026-10-11T10:09:48+00:00\"\n    },\n    {\n      \"id\": 4172,\n      \"type\": {\n        \"value\": \"assigned\",\n        \"label\": \"Assigned\"\n      },\n      \"description\": \"Assigned to Staff One\",\n      \"properties\": {\n        \"from\": null,\n        \"to\": 4\n      },\n      \"user\": {\n        \"id\": 1,\n        \"name\": \"Admin User\"\n      },\n      \"created_at\": \"2026-10-11T10:09:47+00:00\"\n    }\n  ],\n  \"meta\": {\n    \"current_page\": 1,\n    \"per_page\": 15,\n    \"total\": 7,\n    \"last_page\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Cancel order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"cancelled\",\n  \"remarks\": \"Customer cancelled the order.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}",
+                "status"
+              ]
+            },
+            "description": "Same endpoint as Change status. Cancelling a confirmed order puts the stock back.\n\n**Permission:** `orders.cancel`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610/status"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"cancelled\",\n  \"remarks\": \"Customer cancelled the order.\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Order status changed to Cancelled\",\n  \"data\": {\n    \"id\": 610,\n    \"order_number\": \"ORD-10610\",\n    \"status\": {\n      \"value\": \"cancelled\",\n      \"label\": \"Cancelled\"\n    },\n    \"priority\": {\n      \"value\": 3,\n      \"label\": \"High\"\n    },\n    \"order_date\": \"2026-10-11\",\n    \"customer\": {\n      \"id\": 90,\n      \"name\": \"Edison Cormier PhD\",\n      \"email\": \"brennon.bosco@example.com\",\n      \"phone\": \"925.715.8218\",\n      \"company\": null,\n      \"address\": {\n        \"line1\": \"742 Jarrell Vista\",\n        \"line2\": null,\n        \"city\": \"West Norris\",\n        \"state\": \"Missouri\",\n        \"postal_code\": \"28290\",\n        \"country\": \"Gibraltar\"\n      }\n    },\n    \"assignee\": {\n      \"id\": 4,\n      \"name\": \"Staff One\"\n    },\n    \"creator\": {\n      \"id\": 1,\n      \"name\": \"Admin User\"\n    },\n    \"discount_type\": \"percent\",\n    \"discount_value\": 1000,\n    \"subtotal\": 279800,\n    \"discount_total\": 27980,\n    \"tax_total\": 45328,\n    \"grand_total\": 297148,\n    \"formatted\": {\n      \"subtotal\": \"2,798.00\",\n      \"discount_total\": \"279.80\",\n      \"tax_total\": \"453.28\",\n      \"grand_total\": \"2,971.48\"\n    },\n    \"items\": [\n      {\n        \"id\": 1819,\n        \"product_id\": 53,\n        \"product_name\": \"Ergonomic Desk Lamp Pro\",\n        \"sku\": \"PM-1791713378465\",\n        \"quantity\": 2,\n        \"unit_price\": 139900,\n        \"tax_rate_bps\": 1800,\n        \"line_subtotal\": 279800,\n        \"discount_amount\": 27980,\n        \"tax_amount\": 45328,\n        \"line_total\": 297148,\n        \"formatted\": {\n          \"unit_price\": \"1,399.00\",\n          \"discount_amount\": \"279.80\",\n          \"tax_amount\": \"453.28\",\n          \"line_total\": \"2,971.48\"\n        }\n      }\n    ],\n    \"version\": 5,\n    \"stock_deducted_at\": \"2026-10-11T10:09:45+00:00\",\n    \"confirmed_at\": \"2026-10-11T10:09:45+00:00\",\n    \"completed_at\": null,\n    \"cancelled_at\": \"2026-10-11T10:09:49+00:00\",\n    \"cancellation_reason\": \"Customer cancelled the order.\",\n    \"created_at\": \"2026-10-11T10:09:42+00:00\",\n    \"updated_at\": \"2026-10-11T10:09:49+00:00\"\n  }\n}"
+            },
+            {
+              "name": "422 Remarks required",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610/status"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"status\": \"cancelled\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Please give a reason for cancelling the order.\",\n  \"errors\": {\n    \"remarks\": [\n      \"Please give a reason for cancelling the order.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Delete order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 204', () => pm.expect(pm.response.code).to.be.oneOf([204]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/orders/{{orderId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "orders",
+                "{{orderId}}"
+              ]
+            },
+            "description": "Soft delete; only draft, pending or cancelled orders.\n\n**Permission:** `orders.delete`"
+          },
+          "response": [
+            {
+              "name": "204 No Content",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610"
+                }
+              },
+              "status": "No Content",
+              "code": 204,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": ""
+            },
+            {
+              "name": "403 Forbidden (manager)",
+              "originalRequest": {
+                "method": "DELETE",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/orders/610"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This action is unauthorized.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Users",
+      "item": [
+        {
+          "name": "List users",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users?sort=name&page=1&per_page=15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ],
+              "query": [
+                {
+                  "key": "search",
+                  "value": "",
+                  "description": "Name or email (contains).",
+                  "disabled": true
+                },
+                {
+                  "key": "role",
+                  "value": "",
+                  "description": "`admin` | `manager` | `staff`.",
+                  "disabled": true
+                },
+                {
+                  "key": "status",
+                  "value": "",
+                  "description": "`active` | `inactive`.",
+                  "disabled": true
+                },
+                {
+                  "key": "sort",
+                  "value": "name",
+                  "description": "`name` | `email` | `last_login_at` | `created_at`."
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)."
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Items per page, 1–100 (default 15)."
+                }
+              ]
+            },
+            "description": "Paginated. Each user has one role.\n\n**Permission:** `users.manage`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/users?sort=name&page=1&per_page=15"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": [\n    {\n      \"id\": 1,\n      \"name\": \"Admin User\",\n      \"email\": \"admin@oms.test\",\n      \"role\": \"admin\",\n      \"is_active\": true,\n      \"last_login_at\": \"2026-10-11T10:09:22+00:00\",\n      \"created_at\": \"2026-10-10T17:37:25+00:00\"\n    },\n    {\n      \"id\": 2,\n      \"name\": \"Manager One\",\n      \"email\": \"manager1@oms.test\",\n      \"role\": \"manager\",\n      \"is_active\": true,\n      \"last_login_at\": \"2026-10-11T10:09:18+00:00\",\n      \"created_at\": \"2026-10-10T17:37:25+00:00\"\n    }\n  ],\n  \"meta\": {\n    \"current_page\": 1,\n    \"per_page\": 15,\n    \"total\": 7,\n    \"last_page\": 1\n  }\n}"
+            },
+            {
+              "name": "403 Forbidden (manager)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/users?sort=name&page=1&per_page=15"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This action is unauthorized.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Create user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 201', () => pm.expect(pm.response.code).to.be.oneOf([201]));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('userId', json.data.id);",
+                  "pm.collectionVariables.set('userEmail', json.data.email);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ravi Kumar\",\n  \"email\": \"ravi+{{$timestamp}}@oms.test\",\n  \"password\": \"secret-pass\",\n  \"password_confirmation\": \"secret-pass\",\n  \"role\": \"staff\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users"
+              ]
+            },
+            "description": "Password at least 8 characters, confirmed; stored hashed and never returned.\n\n**Permission:** `users.manage`"
+          },
+          "response": [
+            {
+              "name": "201 Created",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/users"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ravi Kumar\",\n  \"email\": \"ravi+1791713391352@oms.test\",\n  \"password\": \"secret-pass\",\n  \"password_confirmation\": \"secret-pass\",\n  \"role\": \"staff\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Created",
+              "code": 201,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"User created successfully\",\n  \"data\": {\n    \"id\": 8,\n    \"name\": \"Ravi Kumar\",\n    \"email\": \"ravi+1791713391352@oms.test\",\n    \"role\": \"staff\",\n    \"is_active\": true,\n    \"last_login_at\": null,\n    \"created_at\": \"2026-10-11T10:09:51+00:00\"\n  }\n}"
+            },
+            {
+              "name": "422 Validation failed",
+              "originalRequest": {
+                "method": "POST",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/users"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ravi\",\n  \"email\": \"admin@oms.test\",\n  \"password\": \"short\",\n  \"password_confirmation\": \"other\",\n  \"role\": \"superuser\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"A user with this email already exists. (and 3 more errors)\",\n  \"errors\": {\n    \"email\": [\n      \"A user with this email already exists.\"\n    ],\n    \"password\": [\n      \"The password field must be at least 8 characters.\",\n      \"The password field confirmation does not match.\"\n    ],\n    \"role\": [\n      \"The selected role is invalid.\"\n    ]\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Show user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "description": "One user.\n\n**Permission:** `users.manage`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/users/8"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": {\n    \"id\": 8,\n    \"name\": \"Ravi Kumar\",\n    \"email\": \"ravi+1791713391352@oms.test\",\n    \"role\": \"staff\",\n    \"is_active\": true,\n    \"last_login_at\": null,\n    \"created_at\": \"2026-10-11T10:09:51+00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update user",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Ravi Kumar\",\n  \"email\": \"{{userEmail}}\",\n  \"role\": \"manager\",\n  \"password\": \"\",\n  \"password_confirmation\": \"\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/{{userId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "{{userId}}"
+              ]
+            },
+            "description": "A blank password keeps the current one. You cannot remove your own admin role, or the last active admin.\n\n**Permission:** `users.manage`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/users/8"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"name\": \"Ravi Kumar\",\n  \"email\": \"ravi+1791713391352@oms.test\",\n  \"role\": \"manager\",\n  \"password\": \"\",\n  \"password_confirmation\": \"\"\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"User updated successfully\",\n  \"data\": {\n    \"id\": 8,\n    \"name\": \"Ravi Kumar\",\n    \"email\": \"ravi+1791713391352@oms.test\",\n    \"role\": \"manager\",\n    \"is_active\": true,\n    \"last_login_at\": null,\n    \"created_at\": \"2026-10-11T10:09:51+00:00\"\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Change user status",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"is_active\": false\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/{{userId}}/status",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "users",
+                "{{userId}}",
+                "status"
+              ]
+            },
+            "description": "A deactivated user cannot log in, and their current session is ended on the next request. You cannot deactivate yourself or the last active admin.\n\n**Permission:** `users.manage`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/users/8/status"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"is_active\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"User status updated successfully\",\n  \"data\": {\n    \"id\": 8,\n    \"name\": \"Ravi Kumar\",\n    \"email\": \"ravi+1791713391352@oms.test\",\n    \"role\": \"manager\",\n    \"is_active\": false,\n    \"last_login_at\": null,\n    \"created_at\": \"2026-10-11T10:09:51+00:00\"\n  }\n}"
+            },
+            {
+              "name": "422 Cannot deactivate yourself",
+              "originalRequest": {
+                "method": "PATCH",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/users/1/status"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"is_active\": false\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"You cannot deactivate your own account.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Roles & permissions",
+      "item": [
+        {
+          "name": "List roles",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "const json = pm.response.json();",
+                  "pm.collectionVariables.set('staffRoleId', json.data.find((r) => r.name === 'staff').id);",
+                  "pm.collectionVariables.set('adminRoleId', json.data.find((r) => r.name === 'admin').id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/roles",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "roles"
+              ]
+            },
+            "description": "Roles with their permissions and user counts. `locked`: the admin role always has every permission.\n\n**Permission:** `users.manage or roles.manage`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/roles"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": [\n    {\n      \"id\": 1,\n      \"name\": \"admin\",\n      \"label\": \"Admin\",\n      \"locked\": true,\n      \"users_count\": 1,\n      \"permissions\": [\n        \"audit.view\",\n        \"customers.create\",\n        \"customers.delete\",\n        \"customers.update\",\n        \"customers.view\",\n        \"dashboard.view\",\n        \"notes.create\",\n        \"orders.assign\",\n        \"orders.cancel\",\n        \"orders.change_status\",\n        \"orders.create\",\n        \"orders.delete\",\n        \"orders.update\",\n        \"orders.view_any\",\n        \"orders.view_assigned\",\n        \"products.manage\",\n        \"products.view\",\n        \"reports.view\",\n        \"roles.manage\",\n        \"users.manage\"\n      ]\n    },\n    {\n      \"id\": 2,\n      \"name\": \"manager\",\n      \"label\": \"Manager\",\n      \"locked\": false,\n      \"users_count\": 4,\n      \"permissions\": [\n        \"customers.create\",\n        \"customers.update\",\n        \"customers.view\",\n        \"dashboard.view\",\n        \"notes.create\",\n        \"orders.assign\",\n        \"orders.cancel\",\n        \"orders.change_status\",\n        \"orders.create\",\n        \"orders.update\",\n        \"orders.view_any\",\n        \"orders.view_assigned\",\n        \"products.view\",\n        \"reports.view\"\n      ]\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "List permissions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/permissions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "permissions"
+              ]
+            },
+            "description": "Every permission, grouped by module.\n\n**Permission:** `users.manage or roles.manage`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/permissions"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": [\n    {\n      \"group\": \"dashboard\",\n      \"label\": \"Dashboard\",\n      \"permissions\": [\n        {\n          \"name\": \"dashboard.view\",\n          \"label\": \"View\"\n        }\n      ]\n    },\n    {\n      \"group\": \"reports\",\n      \"label\": \"Reports\",\n      \"permissions\": [\n        {\n          \"name\": \"reports.view\",\n          \"label\": \"View\"\n        }\n      ]\n    }\n  ]\n}"
+            }
+          ]
+        },
+        {
+          "name": "Update role permissions",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"permissions\": [\n    \"orders.view_assigned\",\n    \"orders.change_status\",\n    \"notes.create\",\n    \"customers.view\",\n    \"products.view\"\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/roles/{{staffRoleId}}/permissions",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "roles",
+                "{{staffRoleId}}",
+                "permissions"
+              ]
+            },
+            "description": "Replaces the full permission list of a role. Applies to its users on their next request; audited as `permissions_changed`.\n\n**Permission:** `roles.manage`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/roles/3/permissions"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"permissions\": [\n    \"orders.view_assigned\",\n    \"orders.change_status\",\n    \"notes.create\",\n    \"customers.view\",\n    \"products.view\"\n  ]\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Role permissions updated successfully\",\n  \"data\": {\n    \"id\": 3,\n    \"name\": \"staff\",\n    \"label\": \"Staff\",\n    \"locked\": false,\n    \"users_count\": 3,\n    \"permissions\": [\n      \"customers.view\",\n      \"notes.create\",\n      \"orders.change_status\",\n      \"orders.view_assigned\",\n      \"products.view\"\n    ]\n  }\n}"
+            },
+            {
+              "name": "422 Admin role is locked",
+              "originalRequest": {
+                "method": "PUT",
+                "header": [
+                  {
+                    "key": "Content-Type",
+                    "value": "application/json"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/roles/1/permissions"
+                },
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"permissions\": []\n}",
+                  "options": {
+                    "raw": {
+                      "language": "json"
+                    }
+                  }
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"The admin role always has every permission and cannot be changed.\"\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Audit log",
+      "item": [
+        {
+          "name": "List audit logs",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/audit-logs?auditable_type=order&auditable_id={{orderId}}&page=1&per_page=15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "audit-logs"
+              ],
+              "query": [
+                {
+                  "key": "auditable_type",
+                  "value": "order",
+                  "description": "`order` | `customer` | `product` | `user` | `role`."
+                },
+                {
+                  "key": "auditable_id",
+                  "value": "{{orderId}}",
+                  "description": "Record id (needs auditable_type)."
+                },
+                {
+                  "key": "event",
+                  "value": "",
+                  "description": "created, updated, deleted, restored, status_changed, assignment_changed, role_changed, password_changed, permissions_changed.",
+                  "disabled": true
+                },
+                {
+                  "key": "user_id",
+                  "value": "",
+                  "description": "Who made the change.",
+                  "disabled": true
+                },
+                {
+                  "key": "from",
+                  "value": "",
+                  "description": "Date `Y-m-d`.",
+                  "disabled": true
+                },
+                {
+                  "key": "to",
+                  "value": "",
+                  "description": "Date `Y-m-d`.",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page number (default 1)."
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Items per page, 1–100 (default 15)."
+                }
+              ]
+            },
+            "description": "Newest first. Each row: who, what (`event`), which record (`subject`) and the changed fields as readable old → new values (enum labels, money, names).\n\n**Permission:** `audit.view`"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/audit-logs?auditable_type=order&auditable_id=610&page=1&per_page=15"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": [\n    {\n      \"id\": 2778,\n      \"event\": \"deleted\",\n      \"event_label\": \"Deleted\",\n      \"user\": {\n        \"id\": 1,\n        \"name\": \"Admin User\"\n      },\n      \"subject\": {\n        \"type\": \"order\",\n        \"type_label\": \"Order\",\n        \"id\": 610,\n        \"label\": \"ORD-10610\"\n      },\n      \"changes\": [\n        {\n          \"field\": \"id\",\n          \"label\": \"Id\",\n          \"old\": \"610\",\n          \"new\": null\n        },\n        {\n          \"field\": \"order_number\",\n          \"label\": \"Order number\",\n          \"old\": \"ORD-10610\",\n          \"new\": null\n        },\n        {\n          \"field\": \"customer_id\",\n          \"label\": \"Customer\",\n          \"old\": \"Edison Cormier PhD\",\n          \"new\": null\n        },\n        {\n          \"field\": \"assigned_to\",\n          \"label\": \"Assigned to\",\n          \"old\": \"Staff One\",\n          \"new\": null\n        },\n        {\n          \"field\": \"created_by\",\n          \"label\": \"Created by\",\n          \"old\": \"Admin User\",\n          \"new\": null\n        },\n        {\n          \"field\": \"status\",\n          \"label\": \"Status\",\n          \"old\": \"Cancelled\",\n          \"new\": null\n        },\n        {\n          \"field\": \"priority\",\n          \"label\": \"Priority\",\n          \"old\": \"High\",\n          \"new\": null\n        },\n        {\n          \"field\": \"order_date\",\n          \"label\": \"Order date\",\n          \"old\": \"2026-10-11\",\n          \"new\": null\n        },\n        {\n          \"field\": \"discount_type\",\n          \"label\": \"Discount type\",\n          \"old\": \"Percentage\",\n          \"new\": null\n        },\n        {\n          \"field\": \"discount_value\",\n          \"label\": \"Discount value\",\n          \"old\": \"1000\",\n          \"new\": null\n        },\n        {\n          \"field\": \"subtotal\",\n          \"label\": \"Subtotal\",\n          \"old\": \"2,798.00\",\n          \"new\": null\n        },\n        {\n          \"field\": \"discount_total\",\n          \"label\": \"Discount total\",\n          \"old\": \"279.80\",\n          \"new\": null\n        },\n        {\n          \"field\": \"tax_total\",\n          \"label\": \"Tax total\",\n          \"old\": \"453.28\",\n          \"new\": null\n        },\n        {\n          \"field\": \"grand_total\",\n          \"label\": \"Grand total\",\n          \"old\": \"2,971.48\",\n          \"new\": null\n        },\n        {\n          \"field\": \"stock_deducted_at\",\n          \"label\": \"Stock deducted at\",\n          \"old\": \"2026-10-11 10:09:45\",\n          \"new\": null\n        },\n        {\n          \"field\": \"confirmed_at\",\n          \"label\": \"Confirmed at\",\n          \"old\": \"2026-10-11 10:09:45\",\n          \"new\": null\n        },\n        {\n          \"field\": \"completed_at\",\n          \"label\": \"Completed at\",\n          \"old\": null,\n          \"new\": null\n        },\n        {\n          \"field\": \"cancelled_at\",\n          \"label\": \"Cancelled at\",\n          \"old\": \"2026-10-11 10:09:49\",\n          \"new\": null\n        },\n        {\n          \"field\": \"cancellation_reason\",\n          \"label\": \"Cancellation reason\",\n          \"old\": \"Customer cancelled the order.\",\n          \"new\": null\n        }\n      ],\n      \"ip_address\": \"127.0.0.1\",\n      \"created_at\": \"2026-10-11T10:09:50+00:00\"\n    },\n    {\n      \"id\": 2777,\n      \"event\": \"status_changed\",\n      \"event_label\": \"Status changed\",\n      \"user\": {\n        \"id\": 1,\n        \"name\": \"Admin User\"\n      },\n      \"subject\": {\n        \"type\": \"order\",\n        \"type_label\": \"Order\",\n        \"id\": 610,\n        \"label\": \"ORD-10610\"\n      },\n      \"changes\": [\n        {\n          \"field\": \"status\",\n          \"label\": \"Status\",\n          \"old\": \"Confirmed\",\n          \"new\": \"Cancelled\"\n        },\n        {\n          \"field\": \"cancelled_at\",\n          \"label\": \"Cancelled at\",\n          \"old\": null,\n          \"new\": \"2026-10-11 10:09:49\"\n        },\n        {\n          \"field\": \"cancellation_reason\",\n          \"label\": \"Cancellation reason\",\n          \"old\": null,\n          \"new\": \"Customer cancelled the order.\"\n        }\n      ],\n      \"ip_address\": \"127.0.0.1\",\n      \"created_at\": \"2026-10-11T10:09:49+00:00\"\n    }\n  ],\n  \"meta\": {\n    \"current_page\": 1,\n    \"per_page\": 15,\n    \"total\": 6,\n    \"last_page\": 1\n  }\n}"
+            },
+            {
+              "name": "403 Forbidden (manager)",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/audit-logs?auditable_type=order&auditable_id=610&page=1&per_page=15"
+                }
+              },
+              "status": "Forbidden",
+              "code": 403,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"This action is unauthorized.\"\n}"
+            },
+            {
+              "name": "422 Id without type",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/audit-logs?auditable_id=5"
+                }
+              },
+              "status": "Unprocessable Content",
+              "code": 422,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"The auditable type field is required when auditable id is present.\",\n  \"errors\": {\n    \"auditable_type\": [\n      \"The auditable type field is required when auditable id is present.\"\n    ]\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Notifications",
+      "description": "The caller's own database notifications (order assigned, status changed, low stock). The SPA polls the unread count every 30 seconds.",
+      "item": [
+        {
+          "name": "Unread count",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/unread-count",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "unread-count"
+              ]
+            },
+            "description": "Number of unread notifications.\n\n**Auth:** Logged in"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/notifications/unread-count"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": {\n    \"count\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "List notifications",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));",
+                  "const json = pm.response.json();",
+                  "if (json.data.length) pm.collectionVariables.set('notificationId', json.data[0].id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications?page=1&per_page=15",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications"
+              ],
+              "query": [
+                {
+                  "key": "unread",
+                  "value": "1",
+                  "description": "Only unread.",
+                  "disabled": true
+                },
+                {
+                  "key": "page",
+                  "value": "1",
+                  "description": "Page."
+                },
+                {
+                  "key": "per_page",
+                  "value": "15",
+                  "description": "Up to 50."
+                }
+              ]
+            },
+            "description": "Newest first. `unread=1` for unread only.\n\n**Auth:** Logged in"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/notifications?page=1&per_page=15"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"OK\",\n  \"data\": [\n    {\n      \"id\": \"959c346a-a5c4-46ee-b19a-a27372440f0d\",\n      \"kind\": \"low_stock\",\n      \"message\": \"Low stock: Ergonomic Desk Lamp Pro has 108 left.\",\n      \"data\": {\n        \"kind\": \"low_stock\",\n        \"message\": \"Low stock: Ergonomic Desk Lamp Pro has 108 left.\",\n        \"product_id\": 53\n      },\n      \"read\": false,\n      \"read_at\": null,\n      \"created_at\": \"2026-10-11T10:09:48+00:00\"\n    },\n    {\n      \"id\": \"2211185e-e2cd-4571-ae25-be7598cb591d\",\n      \"kind\": \"low_stock\",\n      \"message\": \"Low stock: Ergonomic Desk Lamp Pro has 108 left.\",\n      \"data\": {\n        \"kind\": \"low_stock\",\n        \"message\": \"Low stock: Ergonomic Desk Lamp Pro has 108 left.\",\n        \"product_id\": 52\n      },\n      \"read\": true,\n      \"read_at\": \"2026-10-11T10:08:32+00:00\",\n      \"created_at\": \"2026-10-11T10:08:17+00:00\"\n    }\n  ],\n  \"meta\": {\n    \"current_page\": 1,\n    \"per_page\": 15,\n    \"total\": 3,\n    \"last_page\": 1\n  }\n}"
+            }
+          ]
+        },
+        {
+          "name": "Mark one as read",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200 or 404', () => pm.expect(pm.response.code).to.be.oneOf([200,404]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/{{notificationId}}/read",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "{{notificationId}}",
+                "read"
+              ]
+            },
+            "description": "Another user's notification id returns 404.\n\n**Auth:** Logged in (own notifications only)"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/notifications/959c346a-a5c4-46ee-b19a-a27372440f0d/read"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Notification marked as read\",\n  \"data\": {\n    \"id\": \"959c346a-a5c4-46ee-b19a-a27372440f0d\",\n    \"kind\": \"low_stock\",\n    \"message\": \"Low stock: Ergonomic Desk Lamp Pro has 108 left.\",\n    \"data\": {\n      \"kind\": \"low_stock\",\n      \"message\": \"Low stock: Ergonomic Desk Lamp Pro has 108 left.\",\n      \"product_id\": 53\n    },\n    \"read\": true,\n    \"read_at\": \"2026-10-11T10:10:01+00:00\",\n    \"created_at\": \"2026-10-11T10:09:48+00:00\"\n  }\n}"
+            },
+            {
+              "name": "404 Not found",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/notifications/00000000-0000-4000-8000-000000000000/read"
+                }
+              },
+              "status": "Not Found",
+              "code": 404,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": false,\n  \"message\": \"Resource not found.\"\n}"
+            }
+          ]
+        },
+        {
+          "name": "Mark all as read",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/notifications/read-all",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "notifications",
+                "read-all"
+              ]
+            },
+            "description": "Returns how many were marked.\n\n**Auth:** Logged in"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/notifications/read-all"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"All notifications marked as read\",\n  \"data\": {\n    \"marked\": 0\n  }\n}"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Logout",
+      "item": [
+        {
+          "name": "Logout",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Status is 200', () => pm.expect(pm.response.code).to.be.oneOf([200]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/auth/logout",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "v1",
+                "auth",
+                "logout"
+              ]
+            },
+            "description": "Ends the session and rotates the CSRF token.\n\n**Auth:** Logged in"
+          },
+          "response": [
+            {
+              "name": "200 OK",
+              "originalRequest": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/v1/auth/logout"
+                }
+              },
+              "status": "OK",
+              "code": 200,
+              "_postman_previewlanguage": "json",
+              "header": [
+                {
+                  "key": "Content-Type",
+                  "value": "application/json"
+                }
+              ],
+              "body": "{\n  \"success\": true,\n  \"message\": \"Logged out successfully\",\n  \"data\": null\n}"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
