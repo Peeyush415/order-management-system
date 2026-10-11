@@ -5,6 +5,7 @@ use App\Http\Controllers\Api\V1\CustomerController;
 use App\Http\Controllers\Api\V1\DashboardController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\LookupController;
+use App\Http\Controllers\Api\V1\NotificationController;
 use App\Http\Controllers\Api\V1\OrderActivityController;
 use App\Http\Controllers\Api\V1\OrderAssignmentController;
 use App\Http\Controllers\Api\V1\OrderController;
@@ -30,6 +31,14 @@ Route::middleware(['auth:sanctum', 'active'])->group(function () {
     Route::post('/auth/logout', [AuthController::class, 'logout'])->name('api.auth.logout');
     Route::get('/auth/me', [AuthController::class, 'me'])->name('api.auth.me');
     Route::get('/lookups', LookupController::class)->name('api.lookups');
+
+    // Own notifications only; no permission needed beyond being logged in.
+    Route::controller(NotificationController::class)->prefix('notifications')->name('api.notifications.')->group(function () {
+        Route::get('/', 'index')->name('index');
+        Route::get('/unread-count', 'unreadCount')->name('unread-count');
+        Route::post('/read-all', 'markAllRead')->name('read-all');
+        Route::post('/{id}/read', 'markRead')->name('read')->whereUuid('id');
+    });
 
     // Permission names work as abilities through spatie's Gate integration.
     Route::controller(DashboardController::class)->prefix('dashboard')->name('api.dashboard.')->group(function () {

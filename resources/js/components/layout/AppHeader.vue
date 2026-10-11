@@ -3,6 +3,7 @@ import { useQueryClient } from '@tanstack/vue-query';
 import { useRoute, useRouter } from 'vue-router';
 import BaseBadge from '@/components/ui/BaseBadge.vue';
 import BaseButton from '@/components/ui/BaseButton.vue';
+import NotificationBell from './NotificationBell.vue';
 import { useAuthStore } from '@/stores/auth';
 
 defineEmits(['toggle-sidebar']);
@@ -37,6 +38,7 @@ async function logout() {
             <h1 class="text-base font-semibold text-gray-900">{{ route.meta.title ?? '' }}</h1>
         </div>
         <div class="flex items-center gap-3 text-sm">
+            <NotificationBell />
             <span class="hidden sm:inline">{{ auth.user?.name }}</span>
             <BaseBadge v-for="role in auth.user?.roles ?? []" :key="role" color="indigo">{{ role }}</BaseBadge>
             <BaseButton variant="secondary" size="sm" @click="logout">Logout</BaseButton>

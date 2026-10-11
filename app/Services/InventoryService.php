@@ -3,6 +3,7 @@
 namespace App\Services;
 
 use App\Enums\StockMovementType;
+use App\Events\ProductStockLow;
 use App\Exceptions\InsufficientStockException;
 use App\Models\Order;
 use App\Models\Product;
@@ -80,6 +81,21 @@ class InventoryService
             $product = Product::withTrashed()->find($productId, ['id', 'name', 'stock_quantity']);
 
             throw new InsufficientStockException($product?->name ?? "#{$productId}", $product?->stock_quantity ?? 0, $quantity);
+        }
+
+        $this->warnIfNowLow($productId, $quantity);
+    }
+
+    /**
+     * Fires ProductStockLow only when this change crossed the threshold, so admins get
+     * one alert when a product runs low, not one for every order after that.
+     */
+    private function warnIfNowLow(int $productId, int $taken): void
+    {
+        $product = Product::query()->find($productId, ['id', 'name', 'stock_quantity', 'low_stock_threshold']);
+
+        if ($product && $product->isLowStock() && $product->stock_quantity + $taken > $product->low_stock_threshold) {
+            ProductStockLow::dispatch($product);
         }
     }
 

@@ -4,6 +4,7 @@ namespace App\Services;
 
 use App\Enums\OrderActivityType;
 use App\Enums\OrderStatus;
+use App\Events\OrderStatusChanged;
 use App\Exceptions\InsufficientStockException;
 use App\Exceptions\InvalidStatusTransitionException;
 use App\Models\Order;
@@ -71,6 +72,9 @@ class OrderStatusService
                 'description' => "Status changed from {$from->label()} to {$to->label()}",
                 'properties' => ['from' => $from->value, 'to' => $to->value],
             ]);
+
+            // Notifications are queued listeners that only run once this transaction commits.
+            OrderStatusChanged::dispatch($order, $from, $to, $by);
 
             if ($stockActivity) {
                 $order->activities()->create([

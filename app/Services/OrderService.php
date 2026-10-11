@@ -7,6 +7,8 @@ use App\Enums\OrderActivityType;
 use App\Enums\OrderPriority;
 use App\Enums\OrderStatus;
 use App\Enums\ProductStatus;
+use App\Events\OrderAssigned;
+use App\Events\OrderCreated;
 use App\Exceptions\ConcurrencyConflictException;
 use App\Exceptions\OrderNotEditableException;
 use App\Exceptions\ProductUnavailableException;
@@ -73,6 +75,9 @@ class OrderService
                 $order->notes()->create(['user_id' => $by->id, 'body' => $data['note']]);
                 $this->recordActivity($order, $by, OrderActivityType::NoteAdded, 'Note added');
             }
+
+            // Listeners are queued after commit: nothing is sent if this transaction rolls back.
+            OrderCreated::dispatch($order, $by);
 
             return $order;
         });
@@ -164,6 +169,8 @@ class OrderService
                 $assignee ? "Assigned to {$assignee->name}" : 'Unassigned',
                 ['from' => $previous, 'to' => $assigneeId],
             );
+
+            OrderAssigned::dispatch($order, $previous, $by);
 
             return $order;
         });

@@ -77,6 +77,12 @@ export const routes = [
         component: () => import('@/pages/products/ProductForm.vue'),
         meta: { requiresAuth: true, permission: 'products.manage', title: 'Edit product' },
     },
+    {
+        path: '/notifications',
+        name: 'notifications',
+        component: () => import('@/pages/Notifications.vue'),
+        meta: { requiresAuth: true, title: 'Notifications' },
+    },
     { path: '/forbidden', name: 'forbidden', component: () => import('@/pages/Forbidden.vue'), meta: { requiresAuth: true, title: 'Access denied' } },
     { path: '/:pathMatch(.*)*', name: 'not-found', component: () => import('@/pages/NotFound.vue'), meta: { layout: false } },
 ];
