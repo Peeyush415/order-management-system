@@ -80,6 +80,7 @@ All variables live in `.env.example` with safe local defaults and no secrets. `A
 
 | Variable | Default | Purpose |
 |----------|---------|---------|
+| `APP_NAME` | `Order Management System` | Shown in the browser tab |
 | `APP_URL` | `http://localhost:8000` | Base URL of the app |
 | `DB_CONNECTION` / `DB_DATABASE` | `mysql` / `oms` | Main database |
 | `DB_USERNAME` / `DB_PASSWORD` | `root` / *(empty)* | MySQL credentials (XAMPP default) |
@@ -87,6 +88,8 @@ All variables live in `.env.example` with safe local defaults and no secrets. `A
 | `SESSION_DOMAIN` | `null` | Cookie domain; keep `null` for localhost |
 | `SANCTUM_STATEFUL_DOMAINS` | `localhost:8000,127.0.0.1:8000` | Hosts that get cookie (stateful) API auth |
 | `CACHE_STORE` / `QUEUE_CONNECTION` | `database` | No Redis needed to run locally |
+
+To run on another host or port (for example `localhost:8001`), change `APP_URL` and add the host to `SANCTUM_STATEFUL_DOMAINS`; otherwise the browser session is not accepted by the API.
 
 ## Database
 
